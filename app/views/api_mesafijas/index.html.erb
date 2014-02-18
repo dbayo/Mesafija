@@ -1,0 +1,25 @@
+<h1>Listing api_mesafijas</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @api_mesafijas.each do |api_mesafija| %>
+      <tr>
+        <td><%= link_to 'Show', api_mesafija %></td>
+        <td><%= link_to 'Edit', edit_api_mesafija_path(api_mesafija) %></td>
+        <td><%= link_to 'Destroy', api_mesafija, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<br>
+
+<%= link_to 'New Api mesafija', new_api_mesafija_path %>
