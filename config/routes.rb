@@ -57,5 +57,19 @@ Mesafija::Application.routes.draw do
   #   end
 
   get '/getID' => 'api_mesafijas#getID'
+  get '/init' => 'api_mesafijas#init'
   get '/rest_lista' => 'api_mesafijas#rest_lista'
+  get '/rest_datos' => 'api_mesafijas#rest_datos'
+  get '/rest_disponibilidad' => 'api_mesafijas#rest_disponibilidad'
+  get '/rest_reserva_agregar' => 'api_mesafijas#rest_reserva_agregar'
+  get '/rest_reserva_cancelar' => 'api_mesafijas#rest_reserva_cancelar'
+  get '/usuario_login' => 'api_mesafijas#usuario_login'
+  get '/usuario_regpswd' => 'api_mesafijas#usuario_regpswd'
+  get '/usuario_registro' => 'api_mesafijas#usuario_registro'
+  get '/usuario_datos' => 'api_mesafijas#usuario_datos'
+  get '/usuario_editar' => 'api_mesafijas#usuario_editar'
+  get '/valoracion' => 'api_mesafijas#valoracion'
+  get '/usuario_favorito_agregar' => 'api_mesafijas#usuario_favorito_agregar'
+  get '/usuario_favorito_eliminar' => 'api_mesafijas#usuario_favorito_eliminar'
+  get '/preguntas' => 'api_mesafijas#preguntas'
 end
