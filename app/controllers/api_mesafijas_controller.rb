@@ -16,7 +16,6 @@ class ApiMesafijasController < ApplicationController
     restaurantes = restaurantes.where(:idrestaurante => params[:id]) unless params[:id].blank?
     restaurantes = restaurantes.order(:fecha_alta)
 
-    # Obtener valoracion total
     result = []
     restaurantes.each do |restaurante|
       result << {
@@ -47,7 +46,35 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que suministra el detalle de restaurante
   def rest_datos
-    restaurantes = Restaurante.select(:idrestaurante, :nombre, :fciudad).where(:ciudad => 12)
+    restaurante = Restaurante.where(:idrestaurante => params[:id]).first
+    respond_with(nil) and return if restaurante.nil?
+    result = {
+      "id_restaurante" => restaurante.idrestaurante,
+      "latitud" => restaurante.lat,
+      "longitud" => restaurante.lng,
+      "direccion" => restaurante.direccion,
+      "ciudad" => !restaurante.ciudad.blank? ? restaurante.ciudad.ciudad : "",
+      "zona" => !restaurante.zona.blank? ? restaurante.zona.zona : "",
+      "tipoCocina" => restaurante.tipoCocina,
+      "descripcion" => restaurante.txtpresentacion,
+      "detalle" => restaurante.txtotros,
+      "valoracion_media" => restaurante.getValoracionMedia,
+      "numero_comentarios" => restaurante.restauranteOpiniones.count,
+      "numero_usuario" => restaurante.restauranteUsuarios.count,
+      "tipoUsuario" => "???",
+      "fecha" => restaurante.fecha_alta,
+      "valoracion" => restaurante.getValoracion,
+      "comentario" => restaurante.restauranteOpiniones.count,
+      "promociones" => restaurante.restaurantePromos,
+      "idPromocion" => restaurante.restaurantePromos.last.idpromo,
+      "titulo" => restaurante.nombre,
+      "texto" => restaurante.txtpresentacion,
+      "disponibilidad" => "",
+      "validez" => "",
+      "url_imagen" => restaurante.restauranteImg
+    }
+
+    respond_with(result)
   end
 
   # Servicio que suministra la disponibilidad del restaurante. Si solicitamos solamente fecha nos devolverá 
