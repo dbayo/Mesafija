@@ -92,7 +92,13 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que permite cancelar una reserva mediante los datos proporcionados con el servicio usuario-datos.php
   def rest_reserva_cancelar
-
+    rest_reserva = RestaurantesReserva.where(:id_reserva => params[:id])
+    if rest_reserva.exists?
+      rest_reserva.first.update_attributes(:cancelado => 1)
+      respond_with(true)
+    else
+      respond_with(false)
+    end
   end
 
   # Servicio que permite el reconocimiento del usuario
