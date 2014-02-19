@@ -103,7 +103,14 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que permite el reconocimiento del usuario
   def usuario_login
+    respond_with(false) and return if params[:email].blank? || params[:password].blank?
+    user = Usuario.where(:email => params[:email], :password => OpenSSL::HMAC.hexdigest('sha256', params[:password], 'colombia'))
 
+    if user.exists?
+      respond_with(user.first.idreg)
+    else
+      respond_with(false)
+    end
   end
 
   # Servicio que permite procesar la regeneración de password del usuario
