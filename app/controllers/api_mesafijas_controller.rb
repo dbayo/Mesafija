@@ -2,7 +2,7 @@ class ApiMesafijasController < ApplicationController
   before_filter :default_format_json
   respond_to :xml, :json
 
-  # Servicio utilizado para conseguir los valores de inicialización de mesafija.com
+  # Servicio utilizado para conseguir los valores de inicialización de mesafija.com
   def init
     
   end
@@ -108,7 +108,18 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que permite procesar la regeneración de password del usuario
   def usuario_regpswd
+    email = params[:email]
+    clave = SecureRandom.hex(40)
+    usuario = Usuario.where(:email => params[:email]).first
 
+    if usuario.exists?
+      usuarioReg = UsuariosReg.create(:email => usuario.email, :clave => clave)
+
+      ApiMesafijaMailer.usuario_regpswd(usuarioReg).deliver
+      respond_with("Aceptado - Te hemos enviado un email")
+    else
+      respond_with("Denegado - Email not valid")
+    end
   end
 
   # Servicio que permite el registro del usuario
