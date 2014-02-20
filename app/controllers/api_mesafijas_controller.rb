@@ -136,6 +136,29 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que permite acceder a los datos de usuario
   def usuario_datos
+    if params[:nombre].blank? 
+      respond_with("Denegado - Falta nombre") and return
+    elsif params[:apellidos].blank? 
+      respond_with("Denegado - Falta apellidos") and return
+    elsif params[:telefono].blank? 
+      respond_with("Denegado - Falta telefono") and return
+    elsif params[:ciudad].blank? 
+      respond_with("Denegado - Falta ciudad") and return
+    elsif params[:email].blank? 
+      respond_with("Denegado - Falta email") and return
+    elsif params[:password].blank? 
+      respond_with("Denegado - Falta password") and return
+    elsif RestaurantesUsuario.where(:email => params[:email])
+      respond_with("Denegado - Usuario ya existe")
+    end
+
+    restauranteUsuario = RestaurantesUsuario.create(:fecha => Time.now.strftime("%F"), :hora => Time.now.strftime("%T"), :nombre => params[:nombre], :apellidos => params[:apellidos], :telefono => params[:telefono], :ciudad => params[:ciudad], :medio => params[:medio], :email => params[:email], :password => OpenSSL::HMAC.hexdigest('sha256', params[:password], 'colombia') )
+
+    if restauranteUsuario.exists?
+      respond_with(restauranteUsuario.first.id_usuario)
+    else
+      respond_with(false)
+    end
 
   end
 
