@@ -131,11 +131,6 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que permite el registro del usuario
   def usuario_registro
-
-  end
-
-  # Servicio que permite acceder a los datos de usuario
-  def usuario_datos
     if params[:nombre].blank? 
       respond_with("Denegado - Falta nombre") and return
     elsif params[:apellidos].blank? 
@@ -159,6 +154,10 @@ class ApiMesafijasController < ApplicationController
     else
       respond_with(false)
     end
+  end
+
+  # Servicio que permite acceder a los datos de usuario
+  def usuario_datos
 
   end
 
