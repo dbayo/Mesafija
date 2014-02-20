@@ -163,7 +163,16 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que permite editar los datos de usuario mediante los datos proporcionados con el servicio usuario-datos.php
   def usuario_editar
+    restauranteUsuario = RestaurantesUsuario.where(:id_usuario => params[:id]).first
 
+    respond_with("Denegado - No existe el usuario con id : "+params[:id]) and return if restauranteUsuario.nil?
+
+    restauranteUsuario.update_attributes(:nombre => params[:nombre]) unless params[:nombre].blank?
+    restauranteUsuario.update_attributes(:apellidos => params[:apellidos]) unless params[:apellidos].blank?
+    restauranteUsuario.update_attributes(:telefono => params[:telefono]) unless params[:telefono].blank?
+    restauranteUsuario.update_attributes(:ciudad => params[:ciudad]) unless params[:ciudad].blank?
+    restauranteUsuario.update_attributes(:email => params[:email]) unless params[:email].blank?
+    respond_with("Aceptado - Usuario actualizado")
   end
 
   # Servicio que permite valorar un restaurante por el usuario mediante los datos proporcionados con el servicio usuario-datos.php
