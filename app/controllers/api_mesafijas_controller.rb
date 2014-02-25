@@ -205,6 +205,6 @@ class ApiMesafijasController < ApplicationController
   private
     def default_format_json
       request.format = "json"
-      request.format = "xml" if params[:format] == "xml"
+      request.format = "xml" if params[:output] == "xml"
     end
 end
