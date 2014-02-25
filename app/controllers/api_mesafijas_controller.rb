@@ -6,7 +6,27 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio utilizado para conseguir los valores de inicialización de mesafija.com
   def init
-    
+    result = []
+    result << {
+      "Ciudades" => Ciudade.all.map{|ciudad| {"id" => ciudad.idciudad, "nombre" => ciudad.ciudad} }
+    }
+    result << {
+      "Zonas" => Zona.all.map{|zona| {"id" => zona.idzona, "nombre" => zona.zona} }
+    }
+    result << {
+      "TipoCocina" => TiposCocina.all.map{|tipoCocina| {"id" => tipoCocina.idtipococina, "nombre" => tipoCocina.tipococina} }
+    }
+    result << {
+      "CortesPrecio" => RangosPrecio.all.map{|cortePrecio| {"id" => cortePrecio.idrangoprecio, "nombre" => cortePrecio.rangoprecio} }
+    }
+    result << {
+      "Medios" => Medio.all.map{|medio| {"id" => medio.idmedio, "nombre" => medio.medio} }
+    }
+
+    respond_with do |format|
+      format.json { render json: result }
+      format.xml { render xml: result }
+    end
   end
 
   # Servicio que suministra el listado de restaurantes con sus datos básicos
