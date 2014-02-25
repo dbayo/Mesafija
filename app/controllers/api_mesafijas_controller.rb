@@ -238,7 +238,41 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que permite valorar un restaurante por el usuario mediante los datos proporcionados con el servicio usuario-datos.php
   def valoracion
+    # Mirar en funciones-ajax.php, en 'case "opinion": //Opinión - Insertar'
 
+    if params[:idRestaurante].blank? 
+      respond_with("Denegado - Falta idRestaurante") and return
+    elsif params[:idUsuario].blank? 
+      respond_with("Denegado - Falta idUsuario") and return
+    elsif params[:idReserva].blank? 
+      respond_with("Denegado - Falta idReserva") and return
+    end
+
+    opinion = RestaurantesOpinione.where(:restaurante => params[:idRestaurante], :usuario => params[:idUsuario], :reserva => params[:idReserva])
+
+    if params[:valorCocina].blank? 
+      respond_with("Denegado - Falta valorCocina") and return
+    elsif params[:valorAmbiente].blank? 
+      respond_with("Denegado - Falta valorAmbiente") and return
+    elsif params[:valorCalidadPrecio].blank? 
+      respond_with("Denegado - Falta valorCalidadPrecio") and return
+    elsif params[:valorServicio].blank? 
+      respond_with("Denegado - Falta valorServicio") and return
+    elsif params[:valorLimpieza].blank? 
+      respond_with("Denegado - Falta valorLimpieza") and return
+    elsif params[:comentario].blank? 
+      respond_with("Denegado - Falta comentario") and return
+    elsif opinion.exists?
+      respond_with("Denegado - Ya valorado")
+    end
+
+    success = RestaurantesOpinione.create(:restaurante => params[:idRestaurante], :usuario => params[:idUsuario], :reserva => params[:idReserva], :fecha => Time.now.strftime("Y-m-d"), :favorito => 0, :cocina => params[:valorCocina], :ambiente => params[:valorAmbiente], :calidadprecio => params[:valorCalidadPrecio], :servicio => params[:valorServicio], :limpieza => params[:valorLimpieza], :comentario => params[:comentario])
+    if success
+      respond_with("ok")
+      RestaurantesReserva.where(:restaurante => params[:idRestaurante], :usuario => params[:idUsuario], :reserva => params[:idReserva]).update_all(:comentado => true)
+    else
+      respond_with("interno")
+    end
   end
 
   # Servicio que permite marcar un restaurante como favorito por el usuario mediante los datos proporcionados con el servicio usuario-datos.php
@@ -255,8 +289,6 @@ class ApiMesafijasController < ApplicationController
   def preguntas
 
   end
-
-
 
 
   def getAllUsers
