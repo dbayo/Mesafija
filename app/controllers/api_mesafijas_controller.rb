@@ -1,4 +1,6 @@
 class ApiMesafijasController < ApplicationController
+  include ActionController::MimeResponds
+  include ActionController::ImplicitRender
   before_filter :default_format_json
   respond_to :xml, :json
 
@@ -41,7 +43,10 @@ class ApiMesafijasController < ApplicationController
 
     result.reverse if !params[:orden].blank? && params[:orden] == "asc"
 
-    respond_with(result)
+    respond_with do |format|
+      format.json { render json: result }
+      format.xml { render xml: result }
+    end
   end
 
   # Servicio que suministra el detalle de restaurante
@@ -58,23 +63,16 @@ class ApiMesafijasController < ApplicationController
       "tipoCocina" => restaurante.tipoCocina,
       "descripcion" => restaurante.txtpresentacion,
       "detalle" => restaurante.txtotros,
-      "valoracion_media" => restaurante.getValoracionMedia,
-      "numero_comentarios" => restaurante.restauranteOpiniones.count,
-      "numero_usuario" => restaurante.restauranteUsuarios.count,
-      "tipoUsuario" => "???",
-      "fecha" => restaurante.fecha_alta,
-      "valoracion" => restaurante.getValoracion,
-      "comentario" => restaurante.restauranteOpiniones.count,
-      "promociones" => restaurante.restaurantePromos,
-      "idPromocion" => restaurante.restaurantePromos.last.idpromo,
-      "titulo" => restaurante.nombre,
-      "texto" => restaurante.txtpresentacion,
-      "disponibilidad" => "",
-      "validez" => "",
+      "valoracion_media" => RestaurantesOpinione.select("SUM(cocina)/COUNT(*) AS sumcocina,SUM(ambiente)/COUNT(*) AS sumambiente,SUM(calidadprecio)/COUNT(*) AS sumcalidadprecio,SUM(servicio)/COUNT(*) AS sumservicio,SUM(limpieza)/COUNT(*) AS sumlimpieza").where(:restaurante => restaurante.id),
+      "comentarios" => restaurante.getDetailComentarios,
+      "promociones" => restaurante.getDetailPromociones,
       "url_imagen" => restaurante.restauranteImg
-    }
+    } unless restaurante.nil?
 
-    respond_with(result)
+    respond_to do |format|
+      format.json { render json: result }
+      format.xml { render xml: result }
+    end
   end
 
   # Servicio que suministra la disponibilidad del restaurante. Si solicitamos solamente fecha nos devolverá 
@@ -95,6 +93,7 @@ class ApiMesafijasController < ApplicationController
     rest_reserva = RestaurantesReserva.where(:id_reserva => params[:id])
     if rest_reserva.exists?
       rest_reserva.first.update_attributes(:cancelado => 1)
+
       respond_with(true)
     else
       respond_with(false)

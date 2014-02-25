@@ -1,6 +1,6 @@
 # Be sure to restart your server when you modify this file.
 
-# Your secret key is used for verifying the integrity of signed cookies.
+# Your secret key for verifying the integrity of signed cookies.
 # If you change this key, all old signed cookies will become invalid!
 
 # Make sure the secret is at least 30 characters and all random,
@@ -9,4 +9,11 @@
 
 # Make sure your secret_key_base is kept private
 # if you're sharing your code publicly.
-Mesafija::Application.config.secret_key_base = 'aa81a82ea6a9e1ee5e3ab748cdfb0e7008184a7dac5ff37e4ddc40b03cd54e53d056ca671f1c7f8a0a172450d2514e13ff839788a02c4e3ffcc7e7ed2cb873fb'
+
+# Although this is not needed for an api-only application, rails4 
+# requires secret_key_base or secret_token to be defined, otherwise an 
+# error is raised.
+# Using secret_token for rails3 compatibility. Change to secret_key_base
+# to avoid deprecation warning.
+# Can be safely removed in a rails3 api-only application.
+Mesafija::Application.config.secret_token = '6b684ef7766fd6a42bb0a90bb7244c8098c2e3b6c5eb710d9d10908e4fa8b955b040b1807e3efba96f345747136d4d4f9a1d3c0c56d21e3564501510bf6f418c'

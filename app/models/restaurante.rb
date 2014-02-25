@@ -16,4 +16,35 @@ class Restaurante < ActiveRecord::Base
     def getValoracionMedia
     	self.getValoracion.collect{|rest| (rest.sumcocina + rest.sumambiente + rest.sumcalidadprecio + rest.sumservicio + rest.sumlimpieza)/ 5}
     end
+
+    def getDetailComentarios
+        result = []
+        self.restauranteOpiniones.each do |opinion|
+            result << {
+                "usuario" => opinion.restauranteUsuario.id_usuario,
+                "tipoUsuario" => opinion.restauranteUsuario.getTipoUsuario,
+                "fecha" => opinion.fecha,
+                "valoracionCocina" => opinion.cocina,
+                "valoracionAmbiente" => opinion.ambiente,
+                "valoracionCalidadPrecio" => opinion.calidadprecio,
+                "valoracionServicio" => opinion.servicio,
+                "valoracionLimpieza" => opinion.limpieza,
+                "comentario" => opinion.comentario
+            }
+        end
+    end
+
+    def getDetailPromociones
+        result = []
+        self.restaurantePromos.each do |promo|
+            result << {
+                "idPromocion" => promo.idpromo,
+                "titulo" => promo.nombre,
+                "texto" => promo.descripcion,
+                # TODO : Falta hacer la disponibilidad
+                "disponibilidad" => "",
+                "validez" => promo.fechafin
+            }
+        end
+    end
 end
