@@ -202,9 +202,9 @@ class ApiMesafijasController < ApplicationController
   # Servicio que permite acceder a los datos de usuario
   def usuario_datos
     # Mirar en mi-cuenta.php
-    respond_with(false) and return if params[:idUsuario].blank?
+    respond_with("Denegado - Falta idUsuario") and return if params[:idUsuario].blank?
     user = RestaurantesUsuario.where(:id_usuario => params[:idUsuario]).first
-    respond_with(false) and return if user.nil?
+    respond_with("Denegado - No existe el usuario con id : "+params[:idUsuario]) and return if user.nil?
     result = {
       "id" => user.id_usuario,
       "nombre" => user.nombre,
@@ -224,9 +224,9 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que permite editar los datos de usuario mediante los datos proporcionados con el servicio usuario-datos.php
   def usuario_editar
-    restauranteUsuario = RestaurantesUsuario.where(:id_usuario => params[:id]).first
+    restauranteUsuario = RestaurantesUsuario.where(:id_usuario => params[:idUsuario]).first
 
-    respond_with("Denegado - No existe el usuario con id : "+params[:id]) and return if restauranteUsuario.nil?
+    respond_with("Denegado - No existe el usuario con id : "+params[:idUsuario]) and return if restauranteUsuario.nil?
 
     restauranteUsuario.update_attributes(:nombre => params[:nombre]) unless params[:nombre].blank?
     restauranteUsuario.update_attributes(:apellidos => params[:apellidos]) unless params[:apellidos].blank?
@@ -277,12 +277,41 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que permite marcar un restaurante como favorito por el usuario mediante los datos proporcionados con el servicio usuario-datos.php
   def usuario_favorito_agregar
+    # Mirar en funciones-ajax.php, en 'case "agregar-favorito": //Añadir favorito'
 
+    if params[:idUsuario].blank? 
+      respond_with("Denegado - Falta idUsuario") and return
+    elsif params[:idRestaurante].blank? 
+      respond_with("Denegado - Falta idRestaurante") and return
+    end
+
+    favorito = RestaurantesFavorito.where(:usuario => params[:idUsuario], :restaurante => params[:idRestaurante])
+
+    respond_with("Denegado - Este restaurante ya es favorito") and return if favorito.exists?
+    success = RestaurantesFavorito.create(:usuario => params[:idUsuario], :restaurante => params[:idRestaurante])
+    (success) ? respond_with("Aceptado") : respond_with("Denegado")
   end
 
   # Servicio que permite desmarcar un restaurante como favorito por el usuario mediante los datos proporcionados con el servicio usuario-datos.php
   def usuario_favorito_eliminar
+    # Si nos pasa el idFavorito, lo borramos directamente
+    if !params[:idFavorito].blank?
+      restFavorito = RestaurantesFavorito.where(:idFavorito => params[:idFavorito])
+      respond_with("Denegado - Este restaurante no esta como favorito") and return if !restFavorito.exists?
+      success = restFavorito.first.delete
+      (success) ? status = "Aceptado" : status = "Denegado"
+    elsif !params[:idUsuario].blank? && !params[:idRestaurante].blank?
+      restFavorito = RestaurantesFavorito.where(:usuario => params[:idUsuario], :restaurante => params[:idRestaurante])
+      respond_with("Denegado - Este restaurante no esta como favorito") and return if !restFavorito.exists?
+      success = restFavorito.first.delete
+      (success) ? status = "Aceptado" : status = "Denegado"
+    else
+      status = "Denegado - Necesita (idUsuario + idRestaurante) o bien directamente idFavorito"
+    end
 
+    favorito = RestaurantesFavorito.where(:usuario => params[:idUsuario], :restaurante => params[:idRestaurante])
+
+    respond_with(status)
   end
 
   # Servicio que permite listar todas las preguntas frecuentes
