@@ -105,7 +105,26 @@ class ApiMesafijasController < ApplicationController
   # Servicio que permite reservar mediante los datos proporcionados con los servicios rest- 
   # disponibilidad.php y usuario-datos.php
   def rest_reserva_agregar
+    # Mirar el code-reserva-guardar.php
+    # Extraemos datos del usuario de la BBDD
+    user = RestaurantesUsuario.where(:id_usuario => params[:idUsuario]).first
+    respond_with(nil) and return if user.nil?
+    # Comprobamos si está dado de alta en el restaurante seleccionado
+    restUsuario = RestaurantesUsuario.where(:email => user.email, :restaurante => params[:idRestaurante])
 
+    fecha_alta = Today.now.strftime("Y-m-d");
+    hora_alta = Today.now.strftime("H:i:s");
+
+    if !restUsuario.exists? 
+      RestaurantesUsuario.create(:restaurante => params[:idRestaurante], :fecha => fecha_alta, :hora => hora_alta, :nombre => user.nombre, :apellidos => user.apellidos, :telefono => user.telefono, :ciudad => user.ciudad, :medio => user.medio, :email => user.email, :password => user.password)
+    end
+
+    # TODO : Calcular lespera, widget, partner
+    # TODO : Calcular mesa y combinacion
+    # TODO : Mirar el Restaurante.getTurno(params[:turno])
+    success = RestaurantesReserva.create(:restaurante => params[:idRestaurante], :usuario => user.id_usuario, :lespera => false, :widget => false, :partner => false, :fecha_alta => fecha_alta, :hora_alta => hora_alta, :fecha_reserva => params[:fecha], :hora_reserva => params[:hora], :comensales => params[:comensales], :tipo_reserva => 1, :promocion => params[:promocion].to_i, :mesa => 0, :combinacion => 0, :tiempo => 0, :observaciones => "", :turno => Restaurante.getTurno(params[:turno].to_i))
+
+    respond_with(success)
   end
 
   # Servicio que permite cancelar una reserva mediante los datos proporcionados con el servicio usuario-datos.php

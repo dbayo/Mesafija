@@ -47,4 +47,19 @@ class Restaurante < ActiveRecord::Base
             }
         end
     end
+
+    def self.getTurno(turno_id)
+        case turno_id
+        when 1
+            "break"
+        when 2
+            "almuerzo"
+        when 3
+            "onces"
+        when 4
+            "cena"
+        else
+            ""
+        end
+    end
 end
