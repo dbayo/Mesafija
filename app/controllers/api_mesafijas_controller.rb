@@ -316,7 +316,20 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que permite listar todas las preguntas frecuentes
   def preguntas
+    # Buscar por "seccion='5'" en la tabla de secciones
 
+    categorias = SeccionesListCat.order("orden ASC").where(:seccion => 5, :activo => true)
+
+    result = []
+    categorias.each do |categoria|
+      result << {
+        "idCategoria" => categoria.idcategoria,
+        "nombre" => categoria.categoriaes,
+        "listadoPreguntas" => categoria.getListadoPreguntas
+      }
+    end
+
+    respond_with(result)
   end
 
 
