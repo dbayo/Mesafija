@@ -142,13 +142,18 @@ class ApiMesafijasController < ApplicationController
   # Servicio que permite el reconocimiento del usuario
   def usuario_login
     respond_with(false) and return if params[:email].blank? || params[:password].blank?
-    user = Usuario.where(:email => params[:email], :password => OpenSSL::HMAC.hexdigest('sha256', params[:password], 'colombia'))
 
+    user = RestaurantesUsuario.where(:email => params[:email], :password => OpenSSL::HMAC.hexdigest('sha256', 'colombia', params[:password]) )
+
+    # respond_with(HMAC::SHA256('colombia')) and return
     if user.exists?
-      respond_with(user.first.idreg)
+      respond_with(user.first.id_usuario)
     else
       respond_with(false)
     end
+
+    # 6c4ad053e5c9b1a678e34c3d0bbfa82fd5b477f54e6a0fdba8595025c620e671 == 70887088
+    # 6c4ad053e5c9b1a678e34c3d0bbfa82fd5b477f54e6a0fdba8595025c620e671
   end
 
   # Servicio que permite procesar la regeneración de password del usuario
@@ -185,7 +190,7 @@ class ApiMesafijasController < ApplicationController
       respond_with("Denegado - Usuario ya existe")
     end
 
-    restauranteUsuario = RestaurantesUsuario.create(:fecha => Time.now.strftime("%F"), :hora => Time.now.strftime("%T"), :nombre => params[:nombre], :apellidos => params[:apellidos], :telefono => params[:telefono], :ciudad => params[:ciudad], :medio => params[:medio], :email => params[:email], :password => OpenSSL::HMAC.hexdigest('sha256', params[:password], 'colombia') )
+    restauranteUsuario = RestaurantesUsuario.create(:fecha => Time.now.strftime("%F"), :hora => Time.now.strftime("%T"), :nombre => params[:nombre], :apellidos => params[:apellidos], :telefono => params[:telefono], :ciudad => params[:ciudad], :medio => params[:medio], :email => params[:email], :password => OpenSSL::HMAC.hexdigest('sha256', 'colombia', params[:password]) )
 
     if restauranteUsuario.exists?
       respond_with(restauranteUsuario.first.id_usuario)
@@ -196,7 +201,25 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que permite acceder a los datos de usuario
   def usuario_datos
-
+    # Mirar en mi-cuenta.php
+    respond_with(false) and return if params[:idUsuario].blank?
+    user = RestaurantesUsuario.where(:id_usuario => params[:idUsuario]).first
+    respond_with(false) and return if user.nil?
+    result = {
+      "id" => user.id_usuario,
+      "nombre" => user.nombre,
+      "apellidos" => user.apellidos,
+      "telefono" => user.telefono,
+      "ciudad" => user.ciudad,
+      "email" => user.email,
+      "numReservasPendientes" => user.getReservasPendientes.count,
+      "numReservasRealizadas" => user.getReservasRealizadas.count,
+      "numComentariosRealizados" => user.getNumComentariosRealizados,
+      "reservasPendientes" => user.getReservasPendientes,
+      "reservasRealizadas" => user.getReservasRealizadas,
+      "favoritos" => user.getFavoritos
+    }
+    # TODO : Hacer la funcion de getReservasPendientes, getReservasRealizadas, getFavoritos, getNumComentariosRealizados que esta en restaurante_usuario.rb
   end
 
   # Servicio que permite editar los datos de usuario mediante los datos proporcionados con el servicio usuario-datos.php
