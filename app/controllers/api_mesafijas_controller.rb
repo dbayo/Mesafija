@@ -96,9 +96,80 @@ class ApiMesafijasController < ApplicationController
   end
 
   # Servicio que suministra la disponibilidad del restaurante. Si solicitamos solamente fecha nos devolverá 
-  # el rango de plazas disponible. Si suministramos además el número de comensales, nos devolverá los 
+  # el rango de plazas disponible. 
+  def rest_disponibilidad_rango_plazas
+    restaurante = Restaurante.where(:idrestaurante => params[:idRestaurante]).first
+    respond_with(nil) and return if restaurante.nil?
+    fecha = Time.parse(params[:fecha])
+    fecha = Time.now if fecha.blank?
+    letraDia = fecha.getLetraDia
+
+    # Aperturas en promo
+    if !params[:idPromocion].blank?
+      promo = RestaurantesPromo.where(:idpromo => params[:idPromocion]).first
+      promobreak = promo["break_"+letraDia]
+      promoalmuerzo = promo["almuerzo_"+letraDia]
+      promoonces = promo["onces_"+letraDia]
+      promocena = promo["cena_"+letraDia]
+    end
+
+    # Datos horarios
+    restaurantes_plazas = Restaurante.find(:all,
+                select: "restaurantes.*,
+                         restaurantes_plazas.break as plazasbreak,
+                         restaurantes_plazas.almuerzo as plazasalmuerzo,
+                         restaurantes_plazas.onces as plazasonces,
+                         restaurantes_plazas.cena as plazascena,
+                         (select sum(comensales) from restaurantes_reservas where restaurante='"+params[:idRestaurante]+"' and promocion='"+params[:idPromocion].to_i+"' and fecha_reserva='"+fecha.strftime('%F')+"' and turno='break' and cancelado='0') as usosplazasbreak,
+                         (select sum(comensales) from restaurantes_reservas where restaurante='"+params[:idRestaurante]+"' and promocion='"+params[:idPromocion].to_i+"' and fecha_reserva='"+fecha.strftime('%F')+"' and turno='almuerzo' and cancelado='0') as usosplazasalmuerzo,
+                         (select sum(comensales) from restaurantes_reservas where restaurante='"+params[:idRestaurante]+"' and promocion='"+params[:idPromocion].to_i+"' and fecha_reserva='"+fecha.strftime('%F')+"' and turno='onces'  and cancelado='0') as usosplazasonces,
+                         (select sum(comensales) from restaurantes_reservas where restaurante='"+params[:idRestaurante]+"' and promocion='"+params[:idPromocion].to_i+"' and fecha_reserva='"+fecha.strftime('%F')+"' and turno='cena' and cancelado='0') as usosplazascena",
+                joins:  "LEFT JOIN 'restaurantes_plazas' ON restaurantes.idrestaurante = restaurantes_plazas.restaurante",
+                where:  "idrestaurante='"+params[:idRestaurante]+"' and restaurantes_plazas.fecha='"+fecha.strftime('%F')+"'")
+
+    abierto_break = restaurantes_plazas['break_'+letradia]
+    abierto_almuerzo = restaurantes_plazas['almuerzo_'+letradia]
+    abierto_onces = restaurantes_plazas['onces_'+letradia]
+    abierto_cena = restaurantes_plazas['cena_'+letradia]
+    plazasbreak = restaurantes_plazas['plazasbreak']
+    plazasalmuerzo = restaurantes_plazas['plazasalmuerzo']
+    plazasonces = restaurantes_plazas['plazasonces']
+    plazascena = restaurantes_plazas['plazascena']
+    usosplazasbreak = restaurantes_plazas['usosplazasbreak']
+    usosplazasalmuerzo = restaurantes_plazas['usosplazasalmuerzo']
+    usosplazasonces = restaurantes_plazas['usosplazasonces']
+    usosplazascena = restaurantes_plazas['usosplazascena']
+
+    plazasbreak = 0 if abierto_break == 0
+    plazasalmuerzo = 0 if abierto_almuerzo == 0
+    plazasonces = 0 if abierto_onces == 0
+    plazascena = 0 if abierto_cena == 0
+    usosplazasbreak = 0 if !usosplazasbreak
+    usosplazasalmuerzo = 0 if !usosplazasalmuerzo
+    usosplazasonces = 0 if !usosplazasonces
+    usosplazascena = 0 if !usosplazascena
+
+    plazaslibresbreak = plazasbreak - usosplazasbreak
+    plazaslibresalmuerzo = plazasalmuerzo - usosplazasalmuerzo
+    plazaslibresonces = plazasonces - usosplazasonces
+    plazaslibrescena = plazascena - usosplazascena
+
+    # Ajusto los dias de apertura si hay promo seleccionada
+    if !params[:idPromocion].blank?
+      abierto_break = 0 if promobreak == 0
+      abierto_almuerzo = 0 if promoalmuerzo == 0
+      abierto_onces = 0 if promoonces == 0
+      abierto_cena = 0 if promocena == 0
+    end
+
+    # Calculo las plazas dependiendo de todos los parámetros
+    plazasmax = max(plazasbreak,plazasalmuerzo,plazasonces,plazascena)
+    plazaslibresmax = max(plazaslibresbreak,plazaslibresalmuerzo,plazalibressonces,plazaslibrescena)
+  end
+
+  # Servicio que suministra la disponibilidad del restaurante. Si suministramos además el número de comensales, nos devolverá los 
   # horarios disponibles para la fecha y número de comensales seleccionados
-  def rest_disponibilidad
+  def rest_disponibilidad_horas_disponibles
 
   end
 
@@ -145,7 +216,6 @@ class ApiMesafijasController < ApplicationController
 
     user = RestaurantesUsuario.where(:email => params[:email], :password => OpenSSL::HMAC.hexdigest('sha256', 'colombia', params[:password]) )
 
-    # respond_with(HMAC::SHA256('colombia')) and return
     if user.exists?
       respond_with(user.first.id_usuario)
     else
@@ -153,7 +223,6 @@ class ApiMesafijasController < ApplicationController
     end
 
     # 6c4ad053e5c9b1a678e34c3d0bbfa82fd5b477f54e6a0fdba8595025c620e671 == 70887088
-    # 6c4ad053e5c9b1a678e34c3d0bbfa82fd5b477f54e6a0fdba8595025c620e671
   end
 
   # Servicio que permite procesar la regeneración de password del usuario
@@ -338,8 +407,20 @@ class ApiMesafijasController < ApplicationController
   end
 
   private
+    # TODO : Al poner formato XML, el respond_with(false) no funciona por ejemplo en el login
     def default_format_json
       request.format = "json"
       request.format = "xml" if params[:output] == "xml"
+    end
+
+    def getLetraDia(time)
+      return "l" if time.monday?
+      return "m" if time.tuesday?
+      return "x" if time.wednesday?
+      return "j" if time.thursday?
+      return "v" if time.friday?
+      return "s" if time.saturday?
+      return "d" if time.sunday?
+
     end
 end
