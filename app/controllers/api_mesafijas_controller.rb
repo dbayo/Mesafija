@@ -98,39 +98,429 @@ class ApiMesafijasController < ApplicationController
   # Servicio que suministra la disponibilidad del restaurante. Si solicitamos solamente fecha nos devolverá 
   # el rango de plazas disponible. 
   def rest_disponibilidad_rango_plazas
+    # Buscar en include-reservas-personas.php, en if($modoreservas==1){
+    # idRestaurante=75&fecha=2014-01-16
+
     restaurante = Restaurante.where(:idrestaurante => params[:idRestaurante]).first
     respond_with(nil) and return if restaurante.nil?
-    fecha = Time.parse(params[:fecha])
+
+    fecha = Time.parse(params[:fecha]) unless params[:fecha].blank?
     fecha = Time.now if fecha.blank?
-    letraDia = fecha.getLetraDia
+    letraDia = getLetraDia(fecha)
+
+    idPromocion = params[:idPromocion].to_i
+
+    modoreservas = restaurante.modoreservas
 
     # Aperturas en promo
-    if !params[:idPromocion].blank?
-      promo = RestaurantesPromo.where(:idpromo => params[:idPromocion]).first
+    if !idPromocion.blank?
+      promo = RestaurantesPromo.where(:idpromo => idPromocion).first
+      promosnummax = promo.promociones_max
+      promospersmin = promo.comensales_min
+      promospersmax = promo.comensales_max
+
+      restaurantesReservas = RestaurantesReserva.select("sum(comensales) as usos").where(:restaurante => params[:idRestaurante], :promocion => idPromocion, :cancelado => false)
+      usos = restaurantesReservas.usos
+      promosnummax = promosnummax - usos
+      if promosnummax < promospersmax
+        promospersmax = promosnummax
+      end
+
+      # $arrayplazaspromo = array();
+      # for($numplazaspromo=$promospersmin;$numplazaspromo<=$promospersmax;$numplazaspromo++){
+      #   $arrayplazaspromo[] = $numplazaspromo;
+      # }
+      arrayplazaspromo = Array.new
+      (promospersmin..promospersmax).each do |numplazaspromo|
+        arrayplazaspromo << numplazaspromo
+      end
+    end
+
+    # Minimo plazas restaurante
+    if modoreservas == 0
+      plazasmin = 0
+      restaurantesMesas = RestaurantesMesa.find(:all,
+        :select => "min(plazas_min) as plazasminmesas",
+        :joins => "join restaurantes_salones on restaurantes_mesas.salon=restaurantes_salones.idsalon",
+        :conditions => "restaurantes_salones.restaurante='"+restaurante.id.to_s+"' and restaurantes_salones.visible=1"
+        )
+      plazasminmesas = restaurantesMesas.first.plazasminmesas if !restaurantesMesas.nil?
+
+      restaurantesCombinaciones = RestaurantesCombinacione.find(:all,
+        :select => "min(plazas_min) as plazasmincombinaciones",
+        :joins => "join restaurantes_salones on restaurantes_combinaciones.salon=restaurantes_salones.idsalon",
+        :conditions => "restaurantes_salones.restaurante='"+restaurante.id.to_s+"' and restaurantes_salones.visible=1"
+        )
+      plazasmincombinaciones = restaurantesCombinaciones.first.plazasmincombinaciones if !restaurantesCombinaciones.nil?
+
+      if plazasmincombinaciones < plazasminmesas
+        plazasmin = plazasmincombinaciones
+      else
+        plazasmin = plazasminmesas
+      end
+    end
+
+    # Maximo plazas restaurante
+    if modoreservas == 0
+      plazasmin = 0
+      restaurantesMesas = RestaurantesMesa.find(:all,
+        :select => "max(plazas_max) as plazasmaxmesas",
+        :joins => "join restaurantes_salones on restaurantes_mesas.salon=restaurantes_salones.idsalon",
+        :conditions => "restaurantes_salones.restaurante='"+restaurante.id.to_s+"' and restaurantes_salones.visible=1"
+        )
+      plazasmaxmesas = restaurantesMesas.first.plazasmaxmesas if !restaurantesMesas.nil?
+
+      restaurantesCombinaciones = RestaurantesCombinacione.find(:all,
+        :select => "max(plazas_max) as plazasmaxcombinaciones",
+        :joins => "join restaurantes_salones on restaurantes_combinaciones.salon=restaurantes_salones.idsalon",
+        :conditions => "restaurantes_salones.restaurante='"+restaurante.id.to_s+"' and restaurantes_salones.visible=1"
+        )
+      plazasmaxcombinaciones = restaurantesCombinaciones.first.plazasmaxcombinaciones if !restaurantesCombinaciones.nil?
+
+      if plazasmaxcombinaciones > plazasmaxmesas
+        plazasmax = plazasmaxcombinaciones
+      else
+        plazasmax = plazasmaxmesas
+      end
+    end
+
+    respond_with({"plazasmax" => plazasmax, "plazaslibresmax" => plazasmin}) and return
+
+    # Tiempos x mesa
+    if modoreservas == 0
+      restaurantesTiempos = RestaurantesTiempo.find(:all,
+        :select => "least(tiempo_1,tiempo_2,tiempo_3,tiempo_4,tiempo_5,tiempo_6,tiempo_7,tiempo_8,tiempo_9,tiempo_10,tiempo_grupos) as tiempo_minimo",
+        :conditions => "restaurante='"+restaurante.id.to_s+"'"
+        )
+
+      tiempo_minimo = DateTime.now.utc.end_of_day + 1.second - restaurantesTiempos.first.tiempo_minimo.hour.hour - restaurantesTiempos.first.tiempo_minimo.min.minutes
+      time2 = time1.strftime("%T")
+
+      # $tiempo_minimo = mktime(substr($row['tiempo_minimo'],0,2),substr($row['tiempo_minimo'],3,2),0,substr($fechacal,5,2),substr($fechacal,8,2),substr($fechacal,0,4)) - mktime(0,0,0,substr($fechacal,5,2),substr($fechacal,8,2),substr($fechacal,0,4));
+
+      restaurantesTiempos = RestaurantesTiempo.where(:restaurante => restaurante.id).first
+      bloques_1 = DateTime.now.utc.end_of_day + 1.second - restaurantesTiempos.tiempo_1.hour.hour - restaurantesTiempos.tiempo_1.min.minutes
+      bloques_2 = DateTime.now.utc.end_of_day + 1.second - restaurantesTiempos.tiempo_2.hour.hour - restaurantesTiempos.tiempo_2.min.minutes
+      bloques_3 = DateTime.now.utc.end_of_day + 1.second - restaurantesTiempos.tiempo_3.hour.hour - restaurantesTiempos.tiempo_3.min.minutes
+      bloques_4 = DateTime.now.utc.end_of_day + 1.second - restaurantesTiempos.tiempo_4.hour.hour - restaurantesTiempos.tiempo_4.min.minutes
+      bloques_5 = DateTime.now.utc.end_of_day + 1.second - restaurantesTiempos.tiempo_5.hour.hour - restaurantesTiempos.tiempo_5.min.minutes
+      bloques_6 = DateTime.now.utc.end_of_day + 1.second - restaurantesTiempos.tiempo_6.hour.hour - restaurantesTiempos.tiempo_6.min.minutes
+      bloques_7 = DateTime.now.utc.end_of_day + 1.second - restaurantesTiempos.tiempo_7.hour.hour - restaurantesTiempos.tiempo_7.min.minutes
+      bloques_8 = DateTime.now.utc.end_of_day + 1.second - restaurantesTiempos.tiempo_8.hour.hour - restaurantesTiempos.tiempo_8.min.minutes
+      bloques_9 = DateTime.now.utc.end_of_day + 1.second - restaurantesTiempos.tiempo_9.hour.hour - restaurantesTiempos.tiempo_9.min.minutes
+      bloques_10 = DateTime.now.utc.end_of_day + 1.second - restaurantesTiempos.tiempo_10.hour.hour - restaurantesTiempos.tiempo_10.min.minutes
+      bloques_g = DateTime.now.utc.end_of_day + 1.second - restaurantesTiempos.tiempo_grupos.hour.hour - restaurantesTiempos.tiempo_grupos.min.minutes
+      # TODO Falta dividir todos los bloques entre "1800"
+    end
+
+    bloqueo_dia = restaurante.bloqueo_dia
+    margen_reserva = DateTime.now.utc.end_of_day + 1.second - restaurante.margen_reserva.hour.hour - restaurante.margen_reserva.min.minutes
+    bloqueo_hora = DateTime.now + restaurante.margen_reserva.hour.hour + restaurante.margen_reserva.min.minutes
+
+    # Calculos fecha
+    if modoreservas == 0
+      # Aperturas en promo
+      if !idPromocion.blank?
+        promo = RestaurantesPromo.where(:idpromo => idPromocion).first
+        promobreak = promo["break_"+letraDia]
+        promoalmuerzo = promo["almuerzo_"+letraDia]
+        promoonces = promo["onces_"+letraDia]
+        promocena = promo["cena_"+letraDia]
+      end
+
+      # Datos horarios
+      abierto_break = restaurante['break_'+letraDia]
+      abierto_almuerzo = restaurante['almuerzo_'+letraDia]
+      abierto_onces = restaurante['onces_'+letraDia]
+      abierto_cena = restaurante['cena_'+letraDia]
+
+      apertura_break = restaurante['break_'+letraDia+'_a']
+      apertura_break = fecha.change({:hour => apertura_break.hour, :min => apertura_break.min , :sec => apertura_break.sec })
+      apertura_almuerzo = restaurante['almuerzo_'+letraDia+'_a']
+      apertura_almuerzo = fecha.change({:hour => apertura_almuerzo.hour, :min => apertura_almuerzo.min , :sec => apertura_almuerzo.sec })
+      apertura_onces = restaurante['onces_'+letraDia+'_a']
+      apertura_onces = fecha.change({:hour => apertura_onces.hour, :min => apertura_onces.min , :sec => apertura_onces.sec })
+      apertura_cena = restaurante['cena_'+letraDia+'_a']
+      apertura_cena = fecha.change({:hour => apertura_cena.hour, :min => apertura_cena.min , :sec => apertura_cena.sec })
+
+      cierre_break = restaurante['break_'+letraDia+'_c']
+      cierre_break = fecha.change({:hour => cierre_break.hour, :min => cierre_break.min , :sec => cierre_break.sec })
+      cierre_almuerzo = restaurante['almuerzo_'+letraDia+'_c']
+      cierre_almuerzo = fecha.change({:hour => cierre_almuerzo.hour, :min => cierre_almuerzo.min , :sec => cierre_almuerzo.sec })
+      cierre_onces = restaurante['onces_'+letraDia+'_c']
+      cierre_onces = fecha.change({:hour => cierre_onces.hour, :min => cierre_onces.min , :sec => cierre_onces.sec })
+      cierre_cena = restaurante['cena_'+letraDia+'_c']
+      cierre_cena = fecha.change({:hour => cierre_cena.hour, :min => cierre_cena.min , :sec => cierre_cena.sec })
+  
+      horario_break = cierre_break - apertura_break
+      horario_almuerzo = cierre_almuerzo - apertura_almuerzo
+      horario_onces = cierre_onces - apertura_onces
+      horario_cena = cierre_cena - apertura_cena
+
+      # Calculos apertura
+      tiempoapertura = 0;
+      if abierto_break == 1 && horario_break >= tiempo_minimo then tiempoapertura += horario_break end
+      if abierto_almuerzo == 1 && horario_almuerzo >= tiempo_minimo then tiempoapertura += horario_almuerzo end
+      if abierto_onces == 1 && horario_onces >= tiempo_minimo then tiempoapertura += horario_onces end
+      if abierto_cena == 1 && horario_cena >= tiempo_minimo then tiempoapertura += horario_cena end
+
+      # Ajusto los dias de apertura si hay promo seleccionada
+      if !idPromocion.blank?
+        abierto_break = 0 if promobreak == 0
+        abierto_almuerzo = 0 if promoalmuerzo == 0
+        abierto_onces = 0 if promoonces == 0
+        abierto_cena = 0 if promocena == 0
+      end
+
+      # Arrays de parrilla
+      arraybreak = Array.new
+      if abierto_break == 1 && horario_break >= tiempo_minimo
+        horaparrilla = apertura_break
+        while horaparrilla < cierre_break do
+          unless fechasel == hoy && horaparrilla < bloqueo_hora
+            arraybreak[] = horaparrilla
+          end
+          horaparrilla += 1800
+        end
+      end
+
+      arrayalmuerzo = Array.new
+      if abierto_almuerzo == 1 && horario_almuerzo >= tiempo_minimo
+        horaparrilla = apertura_almuerzo
+        while horaparrilla < cierre_almuerzo do
+          unless fechasel == hoy && horaparrilla < bloqueo_hora
+            arrayalmuerzo[] = horaparrilla
+          end
+          horaparrilla += 1800
+        end
+      end
+
+      arrayonces = Array.new
+      if abierto_onces == 1 && horario_onces >= tiempo_minimo
+        horaparrilla = apertura_onces
+        while horaparrilla < cierre_onces do
+          unless fechasel == hoy && horaparrilla < bloqueo_hora
+            arrayonces[] = horaparrilla
+          end
+          horaparrilla += 1800
+        end
+      end
+
+      arraycena = Array.new
+      if abierto_cena == 1 && horario_cena >= tiempo_minimo
+        horaparrilla = apertura_cena
+        while horaparrilla < cierre_cena do
+          unless fechasel == hoy && horaparrilla < bloqueo_hora
+            arraycena[] = horaparrilla
+          end
+          horaparrilla += 1800
+        end
+      end
+
+      # Arrays de plazas
+      arrayplazas = Array.new
+      # Mesas
+      restaurantesMesas = RestaurantesMesa.find(:all,
+        :select => "idmesa,plazas_min,plazas_max",
+        :joins => "join restaurantes_salones on restaurantes_mesas.salon=restaurantes_salones.idsalon",
+        :conditions => "restaurante='"+restaurante.id.to_s+"' and visible='1' and mesafija='1'",
+        :order => "restaurantes_mesas.nombre ASC"
+        )
+
+      restaurantesMesas.each do |restaurantesMesa|
+        # Datos mesa
+        idmesa = restaurantesMesa.idmesa
+        plazas_min = restaurantesMesa.plazas_min
+        plazas_max = restaurantesMesa.plazas_max
+
+        # Calculo disponibilidad de mesa por turno y bloque
+        bloquesbreak = 0
+        bloquesalmuerzo = 0
+        bloquesonces = 0
+        bloquescena = 0
+        maxbloquesbreak = 0
+        maxbloquesalmuerzo = 0
+        maxbloquesonces = 0
+        maxbloquescena = 0
+      
+        arraybreak.each do |elementBreak|
+          # Revisamos si en esta mesa y en este bloque hay alguna reserva
+          restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("mesa = ? and cancelado = ? and fecha_reserva = ? and hora_reserva <= ? and addtime(hora_reserva,tiempo) > ?", idmesa, 0, fechasel, elementBreak, elementBreak)
+          numreservasmesa = restaurantesReservas.count
+
+          # Revisamos si en una combinación con esta mesa y en este bloque hay alguna reserva
+          restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("combinacion in (select idcombinacion from restaurantes_combinaciones where locate('?',combinacion)>0) and cancelado='?' and fecha_reserva='?' and hora_reserva<='?' and addtime(hora_reserva,tiempo)>'?'", idmesa, 0, fechasel, elementBreak, elementBreak)
+          numreservascomb = restaurantesReservas.count
+
+          # Revisamos si en esta mesa y en este bloque hay algun bloqueo
+          restaurantesBloqueos = RestaurantesBloqueo.select("hora").where(:mesa => idmesa, :fecha => fechasel, :hora => elementBreak)
+          numbloqueosmesa = restaurantesBloqueos.count
+
+          # Revisamos si en una combinación con esta mesa y en este bloque hay algun bloqueo
+          restaurantesBloqueos = RestaurantesBloqueo.select("hora").where("combinacion in (select idcombinacion from restaurantes_combinaciones where locate('?',combinacion)>0) and fecha='?' and hora='?'", idmesa, fechasel, elementBreak)
+          numbloqueoscomb = restaurantesBloqueos.count
+
+          # Comprobamos resultados
+          if numreservasmesa == 0 && numreservascomb == 0 && numbloqueosmesa == 0 && numbloqueoscomb == 0
+            bloquesbreak++;
+            if bloquesbreak >= maxbloquesbreak
+              maxbloquesbreak = bloquesbreak
+            else
+              bloquesbreak = 0
+            end
+          end
+        end
+
+        arrayalmuerzo.each do |elementAlmuerzo|
+          # Revisamos si en esta mesa y en este bloque hay alguna reserva
+          restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("mesa = ? and cancelado = ? and fecha_reserva = ? and hora_reserva <= ? and addtime(hora_reserva,tiempo) > ?", idmesa, 0, fechasel, elementAlmuerzo, elementAlmuerzo)
+          numreservasmesa = restaurantesReservas.count
+
+          # Revisamos si en una combinación con esta mesa y en este bloque hay alguna reserva
+          restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("combinacion in (select idcombinacion from restaurantes_combinaciones where locate('?',combinacion)>0) and cancelado='?' and fecha_reserva='?' and hora_reserva<='?' and addtime(hora_reserva,tiempo)>'?'", idmesa, 0, fechasel, elementAlmuerzo, elementAlmuerzo)
+          numreservascomb = restaurantesReservas.count
+
+          # Revisamos si en esta mesa y en este bloque hay algun bloqueo
+          restaurantesBloqueos = RestaurantesBloqueo.select("hora").where(:mesa => idmesa, :fecha => fechasel, :hora => elementAlmuerzo)
+          numbloqueosmesa = restaurantesBloqueos.count
+
+          # Revisamos si en una combinación con esta mesa y en este bloque hay algun bloqueo
+          restaurantesBloqueos = RestaurantesBloqueo.select("hora").where("combinacion in (select idcombinacion from restaurantes_combinaciones where locate('?',combinacion)>0) and fecha='?' and hora='?'", idmesa, fechasel, elementAlmuerzo)
+          numbloqueoscomb = restaurantesBloqueos.count
+
+          # Comprobamos resultados
+          if numreservasmesa == 0 && numreservascomb == 0 && numbloqueosmesa == 0 && numbloqueoscomb == 0
+            bloquesalmuerzo++;
+            if bloquesalmuerzo >= maxbloquesalmuerzo
+              maxbloquesalmuerzo = bloquesalmuerzo
+            else
+              bloquesalmuerzo = 0
+            end
+          end
+        end
+
+        arrayonces.each do |elementOnce|
+          # Revisamos si en esta mesa y en este bloque hay alguna reserva
+          restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("mesa = ? and cancelado = ? and fecha_reserva = ? and hora_reserva <= ? and addtime(hora_reserva,tiempo) > ?", idmesa, 0, fechasel, elementOnce, elementOnce)
+          numreservasmesa = restaurantesReservas.count
+
+          # Revisamos si en una combinación con esta mesa y en este bloque hay alguna reserva
+          restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("combinacion in (select idcombinacion from restaurantes_combinaciones where locate('?',combinacion)>0) and cancelado='?' and fecha_reserva='?' and hora_reserva<='?' and addtime(hora_reserva,tiempo)>'?'", idmesa, 0, fechasel, elementOnce, elementOnce)
+          numreservascomb = restaurantesReservas.count
+
+          # Revisamos si en esta mesa y en este bloque hay algun bloqueo
+          restaurantesBloqueos = RestaurantesBloqueo.select("hora").where(:mesa => idmesa, :fecha => fechasel, :hora => elementOnce)
+          numbloqueosmesa = restaurantesBloqueos.count
+
+          # Revisamos si en una combinación con esta mesa y en este bloque hay algun bloqueo
+          restaurantesBloqueos = RestaurantesBloqueo.select("hora").where("combinacion in (select idcombinacion from restaurantes_combinaciones where locate('?',combinacion)>0) and fecha='?' and hora='?'", idmesa, fechasel, elementOnce)
+          numbloqueoscomb = restaurantesBloqueos.count
+
+          # Comprobamos resultados
+          if numreservasmesa == 0 && numreservascomb == 0 && numbloqueosmesa == 0 && numbloqueoscomb == 0
+            bloquesonces++;
+            if bloquesonces >= maxbloquesonces
+              maxbloquesonces = bloquesonces
+            else
+              bloquesonces = 0
+            end
+          end
+        end
+
+        arraycena.each do |elementCena|
+          # Revisamos si en esta mesa y en este bloque hay alguna reserva
+          restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("mesa = ? and cancelado = ? and fecha_reserva = ? and hora_reserva <= ? and addtime(hora_reserva,tiempo) > ?", idmesa, 0, fechasel, elementCena, elementCena)
+          numreservasmesa = restaurantesReservas.count
+
+          # Revisamos si en una combinación con esta mesa y en este bloque hay alguna reserva
+          restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("combinacion in (select idcombinacion from restaurantes_combinaciones where locate('?',combinacion)>0) and cancelado='?' and fecha_reserva='?' and hora_reserva<='?' and addtime(hora_reserva,tiempo)>'?'", idmesa, 0, fechasel, elementCena, elementCena)
+          numreservascomb = restaurantesReservas.count
+
+          # Revisamos si en esta mesa y en este bloque hay algun bloqueo
+          restaurantesBloqueos = RestaurantesBloqueo.select("hora").where(:mesa => idmesa, :fecha => fechasel, :hora => elementCena)
+          numbloqueosmesa = restaurantesBloqueos.count
+
+          # Revisamos si en una combinación con esta mesa y en este bloque hay algun bloqueo
+          restaurantesBloqueos = RestaurantesBloqueo.select("hora").where("combinacion in (select idcombinacion from restaurantes_combinaciones where locate('?',combinacion)>0) and fecha='?' and hora='?'", idmesa, fechasel, elementCena)
+          numbloqueoscomb = restaurantesBloqueos.count
+
+          # Comprobamos resultados
+          if numreservasmesa == 0 && numreservascomb == 0 && numbloqueosmesa == 0 && numbloqueoscomb == 0
+            bloquescena++;
+            if bloquescena >= maxbloquescena
+              maxbloquescena = bloquescena
+            else
+              bloquescena = 0
+            end
+          end
+        end
+
+        # Extraccion de plazas disponibles
+        bloques = [maxbloquesbreak,maxbloquesalmuerzo,maxbloquesonces,maxbloquescena].max
+        numplazas = plazas_min
+        while numplazas <= plazas_max do
+          if numplazas == 1
+            if bloques_1 <= bloques then arrayplazas[] = numplazas end
+          elsif numplazas == 2
+            if bloques_2 <= bloques then arrayplazas[] = numplazas end
+          elsif numplazas == 3
+            if bloques_3 <= bloques then arrayplazas[] = numplazas end
+          elsif numplazas == 4
+            if bloques_4 <= bloques then arrayplazas[] = numplazas end
+          elsif numplazas == 5
+            if bloques_5 <= bloques then arrayplazas[] = numplazas end
+          elsif numplazas == 6
+            if bloques_6 <= bloques then arrayplazas[] = numplazas end
+          elsif numplazas == 7
+            if bloques_7 <= bloques then arrayplazas[] = numplazas end
+          elsif numplazas == 8
+            if bloques_8 <= bloques then arrayplazas[] = numplazas end
+          elsif numplazas == 9
+            if bloques_9 <= bloques then arrayplazas[] = numplazas end
+          elsif numplazas == 10
+            if bloques_10 <= bloques then arrayplazas[] = numplazas end
+          elsif numplazas > 10
+            if bloques_g <= bloques then arrayplazas[] = numplazas end
+          end
+          numplazas++
+        end
+      end
+
+
+  # If modo reserva == 1
+
+    # Aperturas en promo
+    if idPromocion.blank?
+      idPromocion = 0
+    else
+      promo = RestaurantesPromo.where(:idpromo => idPromocion).first
       promobreak = promo["break_"+letraDia]
       promoalmuerzo = promo["almuerzo_"+letraDia]
       promoonces = promo["onces_"+letraDia]
       promocena = promo["cena_"+letraDia]
+      idPromocion = idPromocion.to_i
     end
 
     # Datos horarios
-    restaurantes_plazas = Restaurante.find(:all,
+    restaurantes_plazas = Restaurante.all(
                 select: "restaurantes.*,
                          restaurantes_plazas.break as plazasbreak,
                          restaurantes_plazas.almuerzo as plazasalmuerzo,
                          restaurantes_plazas.onces as plazasonces,
                          restaurantes_plazas.cena as plazascena,
-                         (select sum(comensales) from restaurantes_reservas where restaurante='"+params[:idRestaurante]+"' and promocion='"+params[:idPromocion].to_i+"' and fecha_reserva='"+fecha.strftime('%F')+"' and turno='break' and cancelado='0') as usosplazasbreak,
-                         (select sum(comensales) from restaurantes_reservas where restaurante='"+params[:idRestaurante]+"' and promocion='"+params[:idPromocion].to_i+"' and fecha_reserva='"+fecha.strftime('%F')+"' and turno='almuerzo' and cancelado='0') as usosplazasalmuerzo,
-                         (select sum(comensales) from restaurantes_reservas where restaurante='"+params[:idRestaurante]+"' and promocion='"+params[:idPromocion].to_i+"' and fecha_reserva='"+fecha.strftime('%F')+"' and turno='onces'  and cancelado='0') as usosplazasonces,
-                         (select sum(comensales) from restaurantes_reservas where restaurante='"+params[:idRestaurante]+"' and promocion='"+params[:idPromocion].to_i+"' and fecha_reserva='"+fecha.strftime('%F')+"' and turno='cena' and cancelado='0') as usosplazascena",
-                joins:  "LEFT JOIN 'restaurantes_plazas' ON restaurantes.idrestaurante = restaurantes_plazas.restaurante",
-                where:  "idrestaurante='"+params[:idRestaurante]+"' and restaurantes_plazas.fecha='"+fecha.strftime('%F')+"'")
+                         (select sum(comensales) from restaurantes_reservas where restaurante='"+params[:idRestaurante]+"' and promocion='"+idPromocion.to_s+"' and fecha_reserva='"+fecha.strftime('%F').to_s+"' and turno='break' and cancelado='0') as usosplazasbreak,
+                         (select sum(comensales) from restaurantes_reservas where restaurante='"+params[:idRestaurante]+"' and promocion='"+idPromocion.to_s+"' and fecha_reserva='"+fecha.strftime('%F').to_s+"' and turno='almuerzo' and cancelado='0') as usosplazasalmuerzo,
+                         (select sum(comensales) from restaurantes_reservas where restaurante='"+params[:idRestaurante]+"' and promocion='"+idPromocion.to_s+"' and fecha_reserva='"+fecha.strftime('%F').to_s+"' and turno='onces'  and cancelado='0') as usosplazasonces,
+                         (select sum(comensales) from restaurantes_reservas where restaurante='"+params[:idRestaurante]+"' and promocion='"+idPromocion.to_s+"' and fecha_reserva='"+fecha.strftime('%F').to_s+"' and turno='cena' and cancelado='0') as usosplazascena",
+                joins:  "LEFT JOIN restaurantes_plazas ON restaurantes.idrestaurante = restaurantes_plazas.restaurante",
+                conditions:  "idrestaurante='"+params[:idRestaurante]+"' and restaurantes_plazas.fecha='"+fecha.strftime('%F').to_s+"'").first
 
-    abierto_break = restaurantes_plazas['break_'+letradia]
-    abierto_almuerzo = restaurantes_plazas['almuerzo_'+letradia]
-    abierto_onces = restaurantes_plazas['onces_'+letradia]
-    abierto_cena = restaurantes_plazas['cena_'+letradia]
+    Rails.logger.debug restaurantes_plazas
+
+    abierto_break = restaurantes_plazas['break_'+letraDia]
+    abierto_almuerzo = restaurantes_plazas['almuerzo_'+letraDia]
+    abierto_onces = restaurantes_plazas['onces_'+letraDia]
+    abierto_cena = restaurantes_plazas['cena_'+letraDia]
     plazasbreak = restaurantes_plazas['plazasbreak']
     plazasalmuerzo = restaurantes_plazas['plazasalmuerzo']
     plazasonces = restaurantes_plazas['plazasonces']
@@ -155,7 +545,7 @@ class ApiMesafijasController < ApplicationController
     plazaslibrescena = plazascena - usosplazascena
 
     # Ajusto los dias de apertura si hay promo seleccionada
-    if !params[:idPromocion].blank?
+    if !idPromocion.blank?
       abierto_break = 0 if promobreak == 0
       abierto_almuerzo = 0 if promoalmuerzo == 0
       abierto_onces = 0 if promoonces == 0
@@ -163,8 +553,10 @@ class ApiMesafijasController < ApplicationController
     end
 
     # Calculo las plazas dependiendo de todos los parámetros
-    plazasmax = max(plazasbreak,plazasalmuerzo,plazasonces,plazascena)
-    plazaslibresmax = max(plazaslibresbreak,plazaslibresalmuerzo,plazalibressonces,plazaslibrescena)
+    plazasmax = [plazasbreak,plazasalmuerzo,plazasonces,plazascena].max
+    plazaslibresmax = [plazaslibresbreak,plazaslibresalmuerzo,plazaslibresonces,plazaslibrescena].max
+
+    respond_with({"plazasmax" => plazasmax, "plazaslibresmax" => plazaslibresmax})
   end
 
   # Servicio que suministra la disponibilidad del restaurante. Si suministramos además el número de comensales, nos devolverá los 
