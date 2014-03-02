@@ -61,6 +61,7 @@ Mesafija::Application.routes.draw do
   get '/rest_datos' => 'api_mesafijas#rest_datos'
   get '/rest_disponibilidad_rango_plazas' => 'api_mesafijas#rest_disponibilidad_rango_plazas'
   get '/rest_disponibilidad_horas_disponibles' => 'api_mesafijas#rest_disponibilidad_horas_disponibles'
+  get '/rest_disponibilidad_turno_disponibles' => 'api_mesafijas#rest_disponibilidad_turno_disponibles'
   get '/rest_reserva_agregar' => 'api_mesafijas#rest_reserva_agregar'
   get '/rest_reserva_cancelar' => 'api_mesafijas#rest_reserva_cancelar'
   get '/usuario_login' => 'api_mesafijas#usuario_login'
