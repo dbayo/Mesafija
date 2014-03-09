@@ -25,5 +25,7 @@ module Mesafija
     config.middleware.use ActionDispatch::Session::CookieStore
     config.middleware.use ActionDispatch::Flash
     # config.middleware.use ActionDispatch::BestStandardsSupport
+
+    config.time_zone = 'America/Bogota'
   end
 end
