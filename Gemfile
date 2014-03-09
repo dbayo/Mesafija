@@ -33,3 +33,5 @@ group :doc do
 end
 
 gem "rmre"
+
+gem "byebug"
