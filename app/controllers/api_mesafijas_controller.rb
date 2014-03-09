@@ -454,9 +454,8 @@ class ApiMesafijasController < ApplicationController
       result << {"Almuerzo" => (@abierto_almuerzo == 1 && @personas <= plazasalmuerzo - usosplazasalmuerzo) || (@abierto_almuerzo == 1 && listaespera == 1 && @personas <= plazasalmuerzo && @personas > (plazasalmuerzo-usosplazasalmuerzo) ) }
       result << {"Break p.m." => (@abierto_onces == 1 && @personas <= plazasonces - usosplazasonces) || (@abierto_onces == 1 && listaespera == 1 && @personas <= plazasonces && @personas > (plazasonces-usosplazasonces) ) }
       result << {"Cena" => (@abierto_cena == 1 && @personas <= plazascena - usosplazascena) || (@abierto_cena == 1 && listaespera == 1 && @personas <= plazascena && @personas > (plazascena-usosplazascena) ) }
-
-      respond_with({"plazasmax" => @plazasmax, "result" => result})
     end
+    respond_with({"plazasmax" => @plazasmax, "result" => result})
   end
 
   # Servicio que permite reservar mediante los datos proporcionados con los servicios rest- 
@@ -805,23 +804,17 @@ class ApiMesafijasController < ApplicationController
 
     def tiempoPorMesaTurno
       if @modoreservas == 0
-        restaurantesTiempos = RestaurantesTiempo.find(:all,
-          :select => "least(tiempo_1,tiempo_2,tiempo_3,tiempo_4,tiempo_5,tiempo_6,tiempo_7,tiempo_8,tiempo_9,tiempo_10,tiempo_grupos) as tiempo_minimo",
-          :conditions => "restaurante='"+@restaurante.id.to_s+"'"
-          ).first
+        restaurantesTiempos = RestaurantesTiempo.select("least(tiempo_1,tiempo_2,tiempo_3,tiempo_4,tiempo_5,tiempo_6,tiempo_7,tiempo_8,tiempo_9,tiempo_10,tiempo_grupos) as tiempo_minimo").where(:restaurante => @restaurante.id).first
 
-        @tiempo_minimo = Time.zone.now.end_of_day + 1.second - restaurantesTiempos.tiempo_minimo.hour.hour - restaurantesTiempos.tiempo_minimo.min.minutes
-        # $tiempo_minimo = mktime(substr($row['tiempo_minimo'],0,2),substr($row['tiempo_minimo'],3,2),0,substr($fechacal,5,2),substr($fechacal,8,2),substr($fechacal,0,4)) - mktime(0,0,0,substr($fechacal,5,2),substr($fechacal,8,2),substr($fechacal,0,4));
+        @tiempo_minimo = restaurantesTiempos.tiempo_minimo.hour.hour + restaurantesTiempos.tiempo_minimo.min.minutes
 
         restaurantesTiempos = RestaurantesTiempo.where(:restaurante => @restaurante.id).first
-
-        if @personas > 10
+        if @personas.to_i > 10
           # Igual que @bloques_g
-          @bloques_nec = Time.zone.now.end_of_day + 1.second - restaurantesTiempos.tiempo_grupos.hour.hour - restaurantesTiempos.tiempo_grupos.min.minutes
+          @bloques_nec = (restaurantesTiempos.tiempo_grupos.hour.hour + restaurantesTiempos.tiempo_grupos.min.minutes) / 1800
         else
-          @bloques_nec = Time.zone.now.end_of_day + 1.second - restaurantesTiempos["tiempo_"+@personas.to_s].hour.hour - restaurantesTiempos["tiempo_"+@personas.to_s].min.minutes
+          @bloques_nec = (restaurantesTiempos["tiempo_"+@personas.to_s].hour.hour + restaurantesTiempos["tiempo_"+@personas.to_s].min.minutes) / 1800
         end
-        # TODO Falta dividir todos los bloques entre "1800"
       end
     end
 
