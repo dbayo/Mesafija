@@ -526,10 +526,13 @@ class ApiMesafijasController < ApplicationController
 
       if @abierto == 1 && @horario >= @tiempo_minimo
         horaparrilla = @apertura
-        while horaparrilla < @cierre-(@bloques_nec*1800) do
+        @result = Array.new
+
+        while horaparrilla <= @cierre-(@bloques_nec*1800) do
           @arrayhora = horaparrilla
           @hora_nec = horaparrilla + (@bloques_nec*1800)
           @contadormesas = 0
+          @contadorcomb = 0
           # Mesas
           restaurantesMesas = RestaurantesMesa.find(:all,
             :select => "idmesa,plazas_min,plazas_max",
@@ -616,32 +619,32 @@ class ApiMesafijasController < ApplicationController
 
 
             # Revisamos si en esta combinacion hay alguna reserva
-            restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("combinacion = ? and cancelado = ? and fecha_reserva = ? and hora_reserva <= ? and addtime(hora_reserva,tiempo) > ? and turno='?'", @idcombinacion, 0, @fecha.strftime("%F"), @arrayhora.strftime("%T"), @arrayhora.strftime("%T"), @txtturno)
+            restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("combinacion = ? and cancelado = ? and fecha_reserva = ? and hora_reserva <= ? and addtime(hora_reserva,tiempo) > ? and turno=?", @idcombinacion, 0, @fecha.strftime("%F"), @arrayhora.strftime("%T"), @arrayhora.strftime("%T"), @txtturno)
             numreservascomb = restaurantesReservas.count
 
             # Revisamos si en el tiempo necesario para realizar esta reserva hay alguna reserva en esta combinacion
-            restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("combinacion = ? and cancelado = ? and fecha_reserva = ? and hora_reserva > ? and hora_reserva < ? and turno='?'", @idcombinacion, 0, @fecha.strftime("%F"), @arrayhora.strftime("%T"), @hora_nec.strftime("%T"), @txtturno)
+            restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("combinacion = ? and cancelado = ? and fecha_reserva = ? and hora_reserva > ? and hora_reserva < ? and turno=?", @idcombinacion, 0, @fecha.strftime("%F"), @arrayhora.strftime("%T"), @hora_nec.strftime("%T"), @txtturno)
             numreservasfuturascomb = restaurantesReservas.count
 
             # Revisamos si alguna mesa de esta combinación tiene alguna reserva
-            restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("mesa in (?) and cancelado='?' and fecha_reserva=? and hora_reserva<=? and addtime(hora_reserva,tiempo)>? and turno='?'", @combinacion, 0, @fecha.strftime("%F"), @arrayhora.strftime("%T"), @arrayhora.strftime("%T"), @txtturno)
+            restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("mesa in (?) and cancelado='?' and fecha_reserva=? and hora_reserva<=? and addtime(hora_reserva,tiempo)>? and turno=?", @combinacion, 0, @fecha.strftime("%F"), @arrayhora.strftime("%T"), @arrayhora.strftime("%T"), @txtturno)
             numreservasmesacomb = restaurantesReservas.count
 
             # Revisamos si en el tiempo necesario para realizar esta reserva en alguna mesa de esta combinación hay alguna reserva
-            restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("mesa in (?) and cancelado='?' and fecha_reserva=? and hora_reserva > ? and hora_reserva < ? and turno='?'", @combinacion, 0, @fecha.strftime("%F"), @arrayhora.strftime("%T"), @hora_nec.strftime("%T"), @txtturno)
+            restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("mesa in (?) and cancelado='?' and fecha_reserva=? and hora_reserva > ? and hora_reserva < ? and turno=?", @combinacion, 0, @fecha.strftime("%F"), @arrayhora.strftime("%T"), @hora_nec.strftime("%T"), @txtturno)
             numreservasfuturasmesacomb = restaurantesReservas.count
 
             # Revisamos si alguna mesa de esta combinación está en otra combinacion que tiene alguna reserva
             numreservasmesaotracomb = 0
-            arraymesas.each do |mesa|
-              restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("combinacion in (select idcombinacion from restaurantes_combinaciones where salon = ? and locate(?,combinacion)>0) and cancelado='?' and fecha_reserva=? and hora_reserva<=? and addtime(hora_reserva,tiempo)>? and turno='?'", @salon, mesa, 0, @fecha.strftime("%F"), @arrayhora.strftime("%T"), @arrayhora.strftime("%T"), @txtturno)
+            @arraymesas.each do |mesa|
+              restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("combinacion in (select idcombinacion from restaurantes_combinaciones where salon = ? and locate(?,combinacion)>0) and cancelado='?' and fecha_reserva=? and hora_reserva<=? and addtime(hora_reserva,tiempo)>? and turno=?", @salon, mesa, 0, @fecha.strftime("%F"), @arrayhora.strftime("%T"), @arrayhora.strftime("%T"), @txtturno)
               numreservasmesaotracomb += restaurantesReservas.count
             end
 
             # Revisamos si en el tiempo necesario para realizar esta reserva alguna mesa de esta combinación está en otra combinacion que tiene alguna reserva
             numreservasfuturasmesaotracomb = 0
-            arraymesas.each do |mesa|
-              restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("combinacion in (select idcombinacion from restaurantes_combinaciones where salon = ? and locate(?,combinacion)>0) and cancelado='?' and fecha_reserva=? and hora_reserva>? and hora_reserva<? and turno='?'", @salon, mesa, 0, @fecha.strftime("%F"), @arrayhora.strftime("%T"), @hora_nec.strftime("%T"), @txtturno)
+            @arraymesas.each do |mesa|
+              restaurantesReservas = RestaurantesReserva.select("hora_reserva").where("combinacion in (select idcombinacion from restaurantes_combinaciones where salon = ? and locate(?,combinacion)>0) and cancelado='?' and fecha_reserva=? and hora_reserva>? and hora_reserva<? and turno=?", @salon, mesa, 0, @fecha.strftime("%F"), @arrayhora.strftime("%T"), @hora_nec.strftime("%T"), @txtturno)
               numreservasfuturasmesaotracomb += restaurantesReservas.count
             end
 
@@ -650,7 +653,7 @@ class ApiMesafijasController < ApplicationController
             numbloqueoscomb = restaurantesBloqueos.count
 
             # Revisamos si en el tiempo necesario para realizar esta reserva en esta combinacion hay algun bloqueo
-            restaurantesBloqueos = RestaurantesBloqueo.select("hora").where("combinacion = ? and fecha = ? and hora_reserva < ?", @idcombinacion, @fecha.strftime("%F"), @hora_nec.strftime("%T") )
+            restaurantesBloqueos = RestaurantesBloqueo.select("hora").where("combinacion = ? and fecha = ? and hora < ?", @idcombinacion, @fecha.strftime("%F"), @hora_nec.strftime("%T") )
             numbloqueosfuturoscomb = restaurantesBloqueos.count
 
             # Revisamos si alguna mesa de esta combinación tiene algun bloqueo
@@ -663,38 +666,44 @@ class ApiMesafijasController < ApplicationController
 
             # Revisamos si alguna mesa de esta combinación está en otra combinacion que tiene algun bloqueo
             numbloqueosmesaotracomb = 0
-            arraymesas.each do |mesa|
+            @arraymesas.each do |mesa|
               restaurantesBloqueos = RestaurantesBloqueo.select("hora").where("combinacion in (select idcombinacion from restaurantes_combinaciones where salon = ? and locate(?,combinacion)>0) and fecha=? and hora=?", @salon, mesa, @fecha.strftime("%F"), @arrayhora.strftime("%T"))
               numbloqueosmesaotracomb += restaurantesBloqueos.count
             end
 
             # Revisamos si en el tiempo necesario para realizar esta reserva alguna mesa de esta combinación está en otra combinacion que tiene algun bloqueo
             numbloqueosfuturosmesaotracomb = 0
-            arraymesas.each do |mesa|
+            @arraymesas.each do |mesa|
               restaurantesBloqueos = RestaurantesBloqueo.select("hora").where("combinacion in (select idcombinacion from restaurantes_combinaciones where salon = ? and locate(?,combinacion)>0) and fecha=? and hora>? and hora < ?", @salon, mesa, @fecha.strftime("%F"), @arrayhora.strftime("%T"), @hora_nec.strftime("%T"))
               numbloqueosfuturosmesaotracomb += restaurantesBloqueos.count
             end
 
             # comprobamos resultados -->
             if numreservascomb == 0 && numreservasfuturascomb == 0 && numreservasmesacomb == 0 && numreservasfuturasmesacomb == 0 && numreservasmesaotracomb == 0 && numreservasfuturasmesaotracomb == 0 && numbloqueoscomb == 0 && numbloqueosfuturoscomb == 0 && numbloqueosmesacomb == 0 && numbloqueosfuturosmesacomb == 0 && numbloqueosmesaotracomb == 0 && numbloqueosfuturosmesaotracomb == 0
-              contadorcomb += 1
+              @contadorcomb += 1
             end
           end
+
+          if @fecha == Time.zone.today && horaparrilla.to_i < @bloqueo_hora
+            @result << {horaparrilla.strftime("%R") => false}
+          elsif @contadormesas > 0 || @contadorcomb > 0
+            @result << {horaparrilla.strftime("%R") => true}
+          else
+            @result << {horaparrilla.strftime("%R") => false}
+          end
+
           horaparrilla += 1800
         end
 
-        @arrayhora = Array.new
         horaparrilla = @cierre - ((@bloques_nec-1)*1800)
         while horaparrilla < @cierre do
-          unless @fecha == Time.zone.today && horaparrilla.to_i < @bloqueo_hora
-            @arrayhora << horaparrilla
-          end
+          @result << {horaparrilla.strftime("%R") => false}
           horaparrilla += 1800
         end
       end
     end
 
-    respond_with({"plazasmax" => @plazasmax, "result" => @arrayhora})
+    respond_with({"plazasmax" => @plazasmax, "result" => @result})
   end
 
   # Servicio que permite reservar mediante los datos proporcionados con los servicios rest- 
@@ -976,14 +985,14 @@ class ApiMesafijasController < ApplicationController
           :joins => "join restaurantes_salones on restaurantes_mesas.salon=restaurantes_salones.idsalon",
           :conditions => "restaurantes_salones.restaurante='"+@restaurante.id.to_s+"' and restaurantes_salones.visible=1"
           )
-        plazasminmesas = restaurantesMesas.first.plazasminmesas if !restaurantesMesas.nil?
+        plazasminmesas = restaurantesMesas.first.plazasminmesas.to_i
 
         restaurantesCombinaciones = RestaurantesCombinacione.find(:all,
           :select => "min(plazas_min) as plazasmincombinaciones",
           :joins => "join restaurantes_salones on restaurantes_combinaciones.salon=restaurantes_salones.idsalon",
           :conditions => "restaurantes_salones.restaurante='"+@restaurante.id.to_s+"' and restaurantes_salones.visible=1"
           )
-        plazasmincombinaciones = restaurantesCombinaciones.first.plazasmincombinaciones if !restaurantesCombinaciones.nil?
+        plazasmincombinaciones = restaurantesCombinaciones.first.plazasmincombinaciones.to_i
 
         if plazasmincombinaciones < plazasminmesas
           return plazasmincombinaciones
@@ -1000,14 +1009,14 @@ class ApiMesafijasController < ApplicationController
           :joins => "join restaurantes_salones on restaurantes_mesas.salon=restaurantes_salones.idsalon",
           :conditions => "restaurantes_salones.restaurante='"+@restaurante.id.to_s+"' and restaurantes_salones.visible=1"
           )
-        plazasmaxmesas = restaurantesMesas.first.plazasmaxmesas if !restaurantesMesas.nil?
+        plazasmaxmesas = restaurantesMesas.first.plazasmaxmesas.to_i
 
         restaurantesCombinaciones = RestaurantesCombinacione.find(:all,
           :select => "max(plazas_max) as plazasmaxcombinaciones",
           :joins => "join restaurantes_salones on restaurantes_combinaciones.salon=restaurantes_salones.idsalon",
           :conditions => "restaurantes_salones.restaurante='"+@restaurante.id.to_s+"' and restaurantes_salones.visible=1"
           )
-        plazasmaxcombinaciones = restaurantesCombinaciones.first.plazasmaxcombinaciones if !restaurantesCombinaciones.nil?
+        plazasmaxcombinaciones = restaurantesCombinaciones.first.plazasmaxcombinaciones.to_i
 
         if plazasmaxcombinaciones > plazasmaxmesas
           return plazasmaxcombinaciones
