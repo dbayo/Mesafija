@@ -95,6 +95,102 @@ class ApiMesafijasController < ApplicationController
     end
   end
 
+  # Muestra los dias del calendario que puede elegir
+  # ?idRestaurante=126&mes=3&anyo=2014
+  def rest_disponibilidad_calendario
+    @restaurante = Restaurante.where(:idrestaurante => params[:idRestaurante]).first
+    respond_with(nil) and return if @restaurante.nil?
+
+    @mes = params[:mes].to_i
+    respond_with("Falta mes") and return if @mes.nil?
+
+    @anyo = params[:anyo].to_i
+    respond_with("Falta año") and return if @anyo.nil?
+
+    @hoy = Time.zone.now.strftime("%F")
+    @fecha = Time.zone.parse(@anyo.to_s+"-"+@mes.to_s+"-"+"1")
+
+    @promo = RestaurantesPromo.where(:idpromo => params[:idPromocion]).first unless params[:idPromocion].blank?
+    (@promo.blank?) ? @idPromocion = "0" : @idPromocion = @promo.id.to_s
+
+    # TODO : Falta promo
+    
+    # Mes y año del mes anterior
+    @mesant = @mes - 1
+    @anyoant = @anyo
+    if @mesant == 0
+      @anyoant -= 1
+      @mesant = 12
+    end
+
+    # Mes y año del mes siguiente
+    @messig = @mes + 1
+    @anyosig = @anyo
+    if @messig == 13
+      @anyosig += 1
+      @messig = 1
+    end
+
+    # Obtenemos la posición del primer día del mes en curso
+    @posdia = @fecha.beginning_of_month.mday
+    # Número de días del mes en curso
+    @diasmes = @fecha.end_of_month.mday
+
+    # Nombre del mes en curso
+    if @mes == 1 then @txtmes = 'Enero'
+    elsif @mes == 2 then @txtmes = 'Febrero'
+    elsif @mes == 3 then @txtmes = 'Marzo'
+    elsif @mes == 4 then @txtmes = 'Abril'
+    elsif @mes == 5 then @txtmes = 'Mayo'
+    elsif @mes == 6 then @txtmes = 'Junio'
+    elsif @mes == 7 then @txtmes = 'Julio'
+    elsif @mes == 8 then @txtmes = 'Agosto'
+    elsif @mes == 9 then @txtmes = 'Septiembre'
+    elsif @mes == 10 then @txtmes = 'Octubre'
+    elsif @mes == 11 then @txtmes = 'Noviembre'
+    elsif @mes == 12 then @txtmes = 'Diciembre'
+    end
+
+    # Tiempos x mesa
+    if @modoreservas == 0
+      restaurantesTiempos = RestaurantesTiempo.select("least(tiempo_1,tiempo_2,tiempo_3,tiempo_4,tiempo_5,tiempo_6,tiempo_7,tiempo_8,tiempo_9,tiempo_10,tiempo_grupos) as tiempo_minimo").where(:restaurante => @restaurante.id).first
+      @tiempo_minimo = restaurantesTiempos.tiempo_minimo.hour.hour + restaurantesTiempos.tiempo_minimo.min.minutes
+
+      restaurantesTiempos = RestaurantesTiempo.where(:restaurante => @restaurante.id).first
+      @bloques_nec = (restaurantesTiempos.tiempo_grupos.hour.hour + restaurantesTiempos.tiempo_grupos.min.minutes) / 1800
+    end
+
+    # TODO: Para que sirve bloqueo dia?
+    @bloqueo_dia = @restaurante.bloqueo_dia
+    # TODO: margen_reserva se utiliza en el codigo PHP ?
+    @margen_reserva = @restaurante.margen_reserva.hour.hour + @restaurante.margen_reserva.min.minutes
+    @bloqueo_hora = (Time.zone.now + @margen_reserva).to_i
+
+    @consultas = 0
+    result = Array.new
+
+    (1..@diasmes).each do |i|
+      @fechacal = @fecha.change({:day => i})
+      if @fechacal < @hoy
+        result << {i => false}
+      elsif @idPromocion.to_i > 0 && @fechacal < @fechapromoinicio
+        result << {i => false}
+      elsif @idPromocion.to_i > 0 && @fechacal > @fechapromofin
+        result << {i => false}
+      elsif @fechacal == @hoy && @bloqueo_dia == 1
+        result << {i => false}
+      else
+        # Calculo letra dia semana
+        result << {i => true}
+      end 
+    end
+
+    # byebug
+
+    respond_with(result)
+
+  end
+
   # Servicio que suministra la disponibilidad del restaurante. Si solicitamos solamente fecha nos devolverá 
   # el rango de plazas disponible. 
   def rest_disponibilidad_rango_plazas

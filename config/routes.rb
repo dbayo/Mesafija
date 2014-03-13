@@ -59,6 +59,7 @@ Mesafija::Application.routes.draw do
   get '/init' => 'api_mesafijas#init'
   get '/rest_lista' => 'api_mesafijas#rest_lista'
   get '/rest_datos' => 'api_mesafijas#rest_datos'
+  get '/rest_disponibilidad_calendario' => 'api_mesafijas#rest_disponibilidad_calendario'
   get '/rest_disponibilidad_rango_plazas' => 'api_mesafijas#rest_disponibilidad_rango_plazas'
   get '/rest_disponibilidad_horas_disponibles' => 'api_mesafijas#rest_disponibilidad_horas_disponibles'
   get '/rest_disponibilidad_turno_disponibles' => 'api_mesafijas#rest_disponibilidad_turno_disponibles'
