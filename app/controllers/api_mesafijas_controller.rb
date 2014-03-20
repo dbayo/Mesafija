@@ -2,7 +2,7 @@ class ApiMesafijasController < ApplicationController
   include ActionController::MimeResponds
   include ActionController::ImplicitRender
   before_filter :default_format_json
-  before_filter :check_id_cliente
+  before_filter :check_idCliente
   respond_to :xml, :json
 
   # Servicio utilizado para conseguir los valores de inicialización de mesafija.com
@@ -32,12 +32,12 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que suministra el listado de restaurantes con sus datos básicos
   def rest_lista
-    restaurantes = Restaurante.all
+    restaurantes = Restaurante.where(:visible => true)
     restaurantes = restaurantes.where(:zona => params[:zona]) unless params[:zona].blank?
     restaurantes = restaurantes.where(:ciudad => params[:ciudad]) unless params[:ciudad].blank?
     restaurantes = restaurantes.join(:tipoCocina).where("" => params[:tipoCocina]) unless params[:tipoCocina].blank?
     restaurantes = restaurantes.where(:idrestaurante => params[:id]) unless params[:id].blank?
-    restaurantes = restaurantes.order(:fecha_alta)
+    restaurantes = restaurantes.order(:nombre)
 
     result = []
     restaurantes.each do |restaurante|
@@ -46,10 +46,9 @@ class ApiMesafijasController < ApplicationController
         "nombre" => restaurante.nombre,
         "ciudad" => restaurante.ciudad.ciudad,
         "zona" => !restaurante.zona.blank? ? restaurante.zona.zona : "",
-        "valoracion" => RestaurantesOpinione.select("SUM(cocina)/COUNT(*) AS sumcocina,SUM(ambiente)/COUNT(*) AS sumambiente,SUM(calidadprecio)/COUNT(*) AS sumcalidadprecio,SUM(servicio)/COUNT(*) AS sumservicio,SUM(limpieza)/COUNT(*) AS sumlimpieza")
-                                            .where(:restaurante => restaurante.id),
+        "valoracion" => restaurante.getValoracionMedia,
         "numero_comentarios" => restaurante.restauranteOpiniones.count,
-        "url_imagen" => restaurante.restauranteImg
+        "url_imagen" => restaurante.getRestauranteImages
       }
     end
 
@@ -72,22 +71,23 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que suministra el detalle de restaurante
   def rest_datos
-    restaurante = Restaurante.where(:idrestaurante => params[:id]).first
+    restaurante = Restaurante.where(:idrestaurante => params[:idRestaurante]).first
     respond_with(nil) and return if restaurante.nil?
     result = {
       "id_restaurante" => restaurante.idrestaurante,
+      "nombre" => restaurante.nombre,
       "latitud" => restaurante.lat,
       "longitud" => restaurante.lng,
       "direccion" => restaurante.direccion,
       "ciudad" => !restaurante.ciudad.blank? ? restaurante.ciudad.ciudad : "",
       "zona" => !restaurante.zona.blank? ? restaurante.zona.zona : "",
-      "tipoCocina" => restaurante.tipoCocina,
+      "tipoCocina" => restaurante.getTipoCocina,
       "descripcion" => restaurante.txtpresentacion,
       "otras_informaciones" => restaurante.txtotros,
-      "valoracion_media" => RestaurantesOpinione.select("SUM(cocina)/COUNT(*) AS sumcocina,SUM(ambiente)/COUNT(*) AS sumambiente,SUM(calidadprecio)/COUNT(*) AS sumcalidadprecio,SUM(servicio)/COUNT(*) AS sumservicio,SUM(limpieza)/COUNT(*) AS sumlimpieza").where(:restaurante => restaurante.id),
+      "valoracion_media" => restaurante.getValoracionMedia,
       "comentarios" => restaurante.getDetailComentarios,
       "promociones" => restaurante.getDetailPromociones,
-      "url_imagen" => restaurante.restauranteImg
+      "url_imagen" => restaurante.getRestauranteImages
     } unless restaurante.nil?
 
     respond_to do |format|
@@ -1332,24 +1332,21 @@ class ApiMesafijasController < ApplicationController
   private
     # TODO : Al poner formato XML, el respond_with(false) no funciona por ejemplo en el login
     def default_format_json
-      request.format = "json"
-      request.format = "xml" if params[:sort_by] == "xml"
+      request.format = "xml"
+      request.format = "json" if params[:sort_by] == "json"
     end
 
-    def check_id_cliente
-      respond_with(nil) and return if params[:id_cliente].blank?
-      idCliente = params[:id_cliente][0]
-      hash = params[:id_cliente].slice!(0)
+    def check_idCliente
+      params[:idCliente] = "9a6e722979ef40985214088c5a3dfb77515201d79b49b7f90df8e03a10dbc9cbe"
+      respond_with(nil) and return if params[:idCliente].blank?
+      idCliente = params[:idCliente][0]
+      hash = params[:idCliente]
 
-      if OpenSSL::HMAC.hexdigest('sha256', 'colombia', idCliente) == hash
+      if (idCliente + OpenSSL::HMAC.hexdigest('sha256', 'colombia', idCliente)) == hash
         params[:idCliente] = idCliente
       else
-        respond_with(nil) and return
+        respond_with("Acceso denegado") and return
       end
-    end
-
-    def generate_id_cliente
-      OpenSSL::HMAC.hexdigest('sha256', 'colombia', params[:id])
     end
 
     def getLetraDia(time)
