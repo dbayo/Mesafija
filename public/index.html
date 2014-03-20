@@ -21,23 +21,6 @@
       }
     </style>
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
-    <script type="text/javascript" charset="utf-8">
-      $(function() {
-        function addTask(task) {
-          $('#tasks').append('<li>' + task.name + '</ul>');
-        }
-
-        $('#new_task').submit(function(e) {
-          $.post('/tasks', $(this).serialize(), addTask);
-          this.reset();
-          e.preventDefault();
-        });
-
-        $.getJSON('/tasks', function(tasks) {
-          $.each(tasks, function() { addTask(this); });
-        });
-      });
-    </script>
   <body>
     <div id="container">
       <h1>Funciones</h1>

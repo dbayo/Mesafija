@@ -2,6 +2,7 @@ class ApiMesafijasController < ApplicationController
   include ActionController::MimeResponds
   include ActionController::ImplicitRender
   before_filter :default_format_json
+  before_filter :check_id_cliente
   respond_to :xml, :json
 
   # Servicio utilizado para conseguir los valores de inicialización de mesafija.com
@@ -82,7 +83,7 @@ class ApiMesafijasController < ApplicationController
       "zona" => !restaurante.zona.blank? ? restaurante.zona.zona : "",
       "tipoCocina" => restaurante.tipoCocina,
       "descripcion" => restaurante.txtpresentacion,
-      "detalle" => restaurante.txtotros,
+      "otras_informaciones" => restaurante.txtotros,
       "valoracion_media" => RestaurantesOpinione.select("SUM(cocina)/COUNT(*) AS sumcocina,SUM(ambiente)/COUNT(*) AS sumambiente,SUM(calidadprecio)/COUNT(*) AS sumcalidadprecio,SUM(servicio)/COUNT(*) AS sumservicio,SUM(limpieza)/COUNT(*) AS sumlimpieza").where(:restaurante => restaurante.id),
       "comentarios" => restaurante.getDetailComentarios,
       "promociones" => restaurante.getDetailPromociones,
@@ -114,7 +115,7 @@ class ApiMesafijasController < ApplicationController
     (@promo.blank?) ? @idPromocion = "0" : @idPromocion = @promo.id.to_s
 
     # TODO : Falta promo
-    
+
     # Mes y año del mes anterior
     @mesant = @mes - 1
     @anyoant = @anyo
@@ -181,6 +182,7 @@ class ApiMesafijasController < ApplicationController
         result << {i => false}
       else
         # Calculo letra dia semana
+        # TODO : Hacer todo el calculo interno
         result << {i => true}
       end 
     end
@@ -1151,12 +1153,13 @@ class ApiMesafijasController < ApplicationController
   end
 
   # Servicio que permite procesar la regeneración de password del usuario
+  # TODO : Buscar como se hace
   def usuario_regpswd
     email = params[:email]
     clave = SecureRandom.hex(40)
-    usuario = Usuario.where(:email => params[:email]).first
+    usuario = RestaurantesUsuario.where(:email => params[:email]).first
 
-    if usuario.exists?
+    if !usuario.nil?
       usuarioReg = UsuariosReg.create(:email => usuario.email, :clave => clave)
 
       ApiMesafijaMailer.usuario_regpswd(usuarioReg).deliver
@@ -1326,16 +1329,27 @@ class ApiMesafijasController < ApplicationController
     respond_with(result)
   end
 
-
-  def getAllUsers
-    respond_with(@users = User.first)
-  end
-
   private
     # TODO : Al poner formato XML, el respond_with(false) no funciona por ejemplo en el login
     def default_format_json
       request.format = "json"
-      request.format = "xml" if params[:output] == "xml"
+      request.format = "xml" if params[:sort_by] == "xml"
+    end
+
+    def check_id_cliente
+      respond_with(nil) and return if params[:id_cliente].blank?
+      idCliente = params[:id_cliente][0]
+      hash = params[:id_cliente].slice!(0)
+
+      if OpenSSL::HMAC.hexdigest('sha256', 'colombia', idCliente) == hash
+        params[:idCliente] = idCliente
+      else
+        respond_with(nil) and return
+      end
+    end
+
+    def generate_id_cliente
+      OpenSSL::HMAC.hexdigest('sha256', 'colombia', params[:id])
     end
 
     def getLetraDia(time)
