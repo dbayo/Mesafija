@@ -29,6 +29,7 @@ class Restaurante < ActiveRecord::Base
                 "valoracionCalidadPrecio" => opinion.calidadprecio,
                 "valoracionServicio" => opinion.servicio,
                 "valoracionLimpieza" => opinion.limpieza,
+                "valoracionMedia" => (opinion.cocina + opinion.ambiente + opinion.calidadprecio + opinion.servicio + opinion.limpieza) / 5,
                 "comentario" => opinion.comentario
             }
         end
