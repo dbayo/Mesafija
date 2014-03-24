@@ -9,19 +9,19 @@ class ApiMesafijasController < ApplicationController
   def init
     result = []
     result << {
-      "Ciudades" => Ciudade.all.map{|ciudad| {"id" => ciudad.idciudad, "nombre" => ciudad.ciudad} }
+      "Ciudades" => Ciudade.where(:visible => true).map{|ciudad| {"id" => ciudad.idciudad, "nombre" => ciudad.ciudad} }
     }
     result << {
-      "Zonas" => Zona.all.map{|zona| {"id" => zona.idzona, "nombre" => zona.zona} }
+      "Zonas" => Zona.where(:visible => true).map{|zona| {"id" => zona.idzona, "nombre" => zona.zona} }
     }
     result << {
-      "TipoCocina" => TiposCocina.all.map{|tipoCocina| {"id" => tipoCocina.idtipococina, "nombre" => tipoCocina.tipococina} }
+      "TipoCocina" => TiposCocina.where(:visible => true).order("orden ASC").map{|tipoCocina| {"id" => tipoCocina.idtipococina, "nombre" => tipoCocina.tipococina} }
     }
     result << {
-      "CortesPrecio" => RangosPrecio.all.map{|cortePrecio| {"id" => cortePrecio.idrangoprecio, "nombre" => cortePrecio.rangoprecio} }
+      "CortesPrecio" => RangosPrecio.where(:visible => true).order("orden ASC").map{|cortePrecio| {"id" => cortePrecio.idrangoprecio, "nombre" => cortePrecio.rangoprecio} }
     }
     result << {
-      "Medios" => Medio.all.map{|medio| {"id" => medio.idmedio, "nombre" => medio.medio} }
+      "Medios" => Medio.where(:visible => true, :borrado => false).order("orden ASC").map{|medio| {"id" => medio.idmedio, "nombre" => medio.medio} }
     }
 
     respond_with do |format|
@@ -245,7 +245,7 @@ class ApiMesafijasController < ApplicationController
 
       # Calculos apertura
       # TODO: tiempoapertura se utiliza en el codigo PHP ?
-      @tiempoapertura = getTiempoApertura
+      # @tiempoapertura = getTiempoApertura
 
       # Ajusto los dias de apertura si hay promo seleccionada
       if !@promo.blank?
@@ -333,15 +333,13 @@ class ApiMesafijasController < ApplicationController
       result = Array.new
       (@plazasmin..@plazasmax).each do |i|
         if !@promo.blank?
-          result << {i => (arrayplazasord.include?(i) && arrayplazaspromo.include?(i))}
+          result << {i => (arrayplazasord.include?(i) && @arrayplazaspromo.include?(i))}
         else
           result << {i => arrayplazasord.include?(i)}
         end
       end
     else
     # If modo reserva == 1
-      # Aperturas en promo
-
       # Datos horarios
       restaurantes_plazas = Restaurante.all(
                   select: "restaurantes.*,
@@ -384,16 +382,27 @@ class ApiMesafijasController < ApplicationController
       plazaslibrescena = plazascena - usosplazascena
 
       # Ajusto los dias de apertura si hay promo seleccionada
-      if !idPromocion.blank?
-        @abierto_break = 0 if promobreak == 0
-        @abierto_almuerzo = 0 if promoalmuerzo == 0
-        @abierto_onces = 0 if promoonces == 0
-        @abierto_cena = 0 if promocena == 0
+      if !@idPromocion.blank?
+        @abierto_break = 0 if @promobreak == 0
+        @abierto_almuerzo = 0 if @promoalmuerzo == 0
+        @abierto_onces = 0 if @promoonces == 0
+        @abierto_cena = 0 if @promocena == 0
       end
 
       # Calculo las plazas dependiendo de todos los parámetros
       @plazasmax = [plazasbreak,plazasalmuerzo,plazasonces,plazascena].max
       plazaslibresmax = [plazaslibresbreak,plazaslibresalmuerzo,plazaslibresonces,plazaslibrescena].max
+
+      result = Array.new
+      (1..@plazasmax).each do |i|
+        if i <= plazaslibresmax
+          result << {i => true}
+        elsif @restaurante.listaespera
+          result << {i => "listaEspera"}
+        else
+          result << {i => false}
+        end
+      end
     end
     respond_with({"plazasmax" => @plazasmax, "result" => result})
   end
@@ -409,7 +418,7 @@ class ApiMesafijasController < ApplicationController
     @fecha = Time.zone.now if @fecha.blank?
     @letraDia = getLetraDia(@fecha)
 
-    @personas = params[:comensales]
+    @personas = params[:comensales].to_i
     @personas = 2 if params[:comensales].blank?
 
     turno = 0
@@ -420,7 +429,7 @@ class ApiMesafijasController < ApplicationController
     @modoreservas = @restaurante.modoreservas
 
     # Aperturas en promo
-    aperturaPromo
+    # aperturaPromo
 
     # Minimo plazas restaurante
     @plazasmin = getMinimoPlazasRestaurante
@@ -435,13 +444,29 @@ class ApiMesafijasController < ApplicationController
     @margen_reserva = Time.zone.now.end_of_day + 1.second - @restaurante.margen_reserva.hour.hour - @restaurante.margen_reserva.min.minutes
     @bloqueo_hora = Time.zone.now + @restaurante.margen_reserva.hour.hour + @restaurante.margen_reserva.min.minutes
 
+    # Aperturas en promo
+    if !@promo.blank?
+      @promobreak = @promo["break_"+@letraDia]
+      @promoalmuerzo = @promo["almuerzo_"+@letraDia]
+      @promoonces = @promo["onces_"+@letraDia]
+      @promocena = @promo["cena_"+@letraDia]
+    end
+
     # Calculos fecha
     if @modoreservas == 0
       # Datos horarios
       datosHorarios
 
+      # Ajusto los dias de apertura si hay promo seleccionada
+      if !@promo.blank?
+        @abierto_break = 0 if @promobreak == 0
+        @abierto_almuerzo = 0 if @promoalmuerzo == 0
+        @abierto_onces = 0 if @promoonces == 0
+        @abierto_cena = 0 if @promocena == 0
+      end
+
       # Calculos apertura
-      @tiempoapertura = getTiempoApertura
+      # @tiempoapertura = getTiempoApertura
 
       # Arrays de parrilla
       arrayParrilla
@@ -519,7 +544,20 @@ class ApiMesafijasController < ApplicationController
       result << {"Break p.m." => (@mesasonces==1 || @combonces==1)}
       result << {"Cena" => (@mesascena==1 || @combcena==1)}
     else
-      # Modo reserva == 1
+    # Modo reserva == 1
+      @abierto_break = @restaurante['break_'+@letraDia]
+      @abierto_almuerzo = @restaurante['almuerzo_'+@letraDia]
+      @abierto_onces = @restaurante['onces_'+@letraDia]
+      @abierto_cena = @restaurante['cena_'+@letraDia]
+
+      # Ajusto los dias de apertura si hay promo seleccionada
+      if !@promo.blank?
+        @abierto_break = 0 if @promobreak == 0
+        @abierto_almuerzo = 0 if @promoalmuerzo == 0
+        @abierto_onces = 0 if @promoonces == 0
+        @abierto_cena = 0 if @promocena == 0
+      end
+
       restaurantes_plazas = Restaurante.all(
                   select: "restaurantes.*,
                            restaurantes_plazas.break as plazasbreak,
@@ -537,20 +575,50 @@ class ApiMesafijasController < ApplicationController
       @abierto_almuerzo = restaurantes_plazas['almuerzo_'+@letraDia]
       @abierto_onces = restaurantes_plazas['onces_'+@letraDia]
       @abierto_cena = restaurantes_plazas['cena_'+@letraDia]
-      plazasbreak = restaurantes_plazas['plazasbreak']
-      plazasalmuerzo = restaurantes_plazas['plazasalmuerzo']
-      plazasonces = restaurantes_plazas['plazasonces']
-      plazascena = restaurantes_plazas['plazascena']
-      usosplazasbreak = restaurantes_plazas['usosplazasbreak']
-      usosplazasalmuerzo = restaurantes_plazas['usosplazasalmuerzo']
-      usosplazasonces = restaurantes_plazas['usosplazasonces']
-      usosplazascena = restaurantes_plazas['usosplazascena']
+      plazasbreak = restaurantes_plazas['plazasbreak'].to_i
+      plazasalmuerzo = restaurantes_plazas['plazasalmuerzo'].to_i
+      plazasonces = restaurantes_plazas['plazasonces'].to_i
+      plazascena = restaurantes_plazas['plazascena'].to_i
+      usosplazasbreak = restaurantes_plazas['usosplazasbreak'].to_i
+      usosplazasalmuerzo = restaurantes_plazas['usosplazasalmuerzo'].to_i
+      usosplazasonces = restaurantes_plazas['usosplazasonces'].to_i
+      usosplazascena = restaurantes_plazas['usosplazascena'].to_i
+      # byebug
+
       
       result = Array.new
-      result << {"Break a.m." => (@abierto_break == 1 && @personas <= plazasbreak - usosplazasbreak) || (@abierto_break == 1 && listaespera == 1 && @personas <= plazasbreak && @personas > (plazasbreak-usosplazasbreak) ) }
-      result << {"Almuerzo" => (@abierto_almuerzo == 1 && @personas <= plazasalmuerzo - usosplazasalmuerzo) || (@abierto_almuerzo == 1 && listaespera == 1 && @personas <= plazasalmuerzo && @personas > (plazasalmuerzo-usosplazasalmuerzo) ) }
-      result << {"Break p.m." => (@abierto_onces == 1 && @personas <= plazasonces - usosplazasonces) || (@abierto_onces == 1 && listaespera == 1 && @personas <= plazasonces && @personas > (plazasonces-usosplazasonces) ) }
-      result << {"Cena" => (@abierto_cena == 1 && @personas <= plazascena - usosplazascena) || (@abierto_cena == 1 && listaespera == 1 && @personas <= plazascena && @personas > (plazascena-usosplazascena) ) }
+      if @abierto_break == 1 && @personas <= plazasbreak - usosplazasbreak
+        result << {"Break a.m." => true}
+      elsif @abierto_break == 1 && @restaurante.listaespera == 1 && @personas <= plazasbreak && @personas > (plazasbreak-usosplazasbreak)
+        result << {"Break a.m." => "listaEspera"}
+      else
+        result << {"Break a.m." => false}
+      end
+      byebug
+
+      if @abierto_almuerzo == 1 && @personas <= plazasalmuerzo - usosplazasalmuerzo
+        result << {"Almuerzo" => true}
+      elsif @abierto_almuerzo == 1 && @restaurante.listaespera == 1 && @personas <= plazasalmuerzo && @personas > (plazasalmuerzo-usosplazasalmuerzo)
+        result << {"Almuerzo" => "listaEspera"}
+      else
+        result << {"Almuerzo" => false}
+      end
+
+      if @abierto_onces == 1 && @personas <= plazasonces - usosplazasonces
+        result << {"Break p.m." => true}
+      elsif @abierto_onces == 1 && @restaurante.listaespera == 1 && @personas <= plazasonces && @personas > (plazasonces-usosplazasonces)
+        result << {"Break p.m." => "listaEspera"}
+      else
+        result << {"Break p.m." => false}
+      end
+
+      if @abierto_cena == 1 && @personas <= plazascena - usosplazascena
+        result << {"Cena" => true}
+      elsif @abierto_cena == 1 && @restaurante.listaespera == 1 && @personas <= plazascena && @personas > (plazascena-usosplazascena)
+        result << {"Cena" => "listaEspera"}
+      else
+        result << {"Cena" => false}
+      end
     end
     respond_with({"plazasmax" => @plazasmax, "result" => result})
   end
@@ -564,7 +632,7 @@ class ApiMesafijasController < ApplicationController
     @fecha = Time.zone.now if @fecha.blank?
     @letraDia = getLetraDia(@fecha)
 
-    @personas = params[:comensales]
+    @personas = params[:comensales].to_i
     @personas = 2 if params[:comensales].blank?
 
     @turno = params[:turno].to_i
@@ -591,43 +659,42 @@ class ApiMesafijasController < ApplicationController
     @margen_reserva = Time.zone.now.end_of_day + 1.second - @restaurante.margen_reserva.hour.hour - @restaurante.margen_reserva.min.minutes
     @bloqueo_hora = Time.zone.now + @restaurante.margen_reserva.hour.hour + @restaurante.margen_reserva.min.minutes
 
-    # Calculos fecha
+    datosHorarios
+
+    if @turno == 1
+      @abierto = @abierto_break
+      @horario = @horario_break
+      @apertura = @apertura_break
+      @cierre = @cierre_break
+      @txtturno = 'break'
+    elsif @turno == 2
+      @abierto = @abierto_almuerzo
+      @horario = @horario_almuerzo
+      @apertura = @apertura_almuerzo
+      @cierre = @cierre_almuerzo
+      @txtturno = 'almuerzo'
+    elsif @turno == 3
+      @abierto = @abierto_onces
+      @horario = @horario_onces
+      @apertura = @apertura_onces
+      @cierre = @cierre_onces
+      @txtturno = 'onces'
+    elsif @turno == 4
+      @abierto = @abierto_cena
+      @horario = @horario_cena
+      @apertura = @apertura_cena
+      @cierre = @cierre_cena
+      @txtturno = 'cena'
+    end
+
+    # Calculos apertura
+    # @tiempoapertura = getTiempoApertura
+
+    @result = Array.new
     if @modoreservas == 0
-      # Datos horarios
-      datosHorarios
-
-      # Calculos apertura
-      @tiempoapertura = getTiempoApertura
-
-      if @turno == 1
-        @abierto = @abierto_break
-        @horario = @horario_break
-        @apertura = @apertura_break
-        @cierre = @cierre_break
-        @txtturno = 'break'
-      elsif @turno == 2
-        @abierto = @abierto_almuerzo
-        @horario = @horario_almuerzo
-        @apertura = @apertura_almuerzo
-        @cierre = @cierre_almuerzo
-        @txtturno = 'almuerzo'
-      elsif @turno == 3
-        @abierto = @abierto_onces
-        @horario = @horario_onces
-        @apertura = @apertura_onces
-        @cierre = @cierre_onces
-        @txtturno = 'onces'
-      elsif @turno == 4
-        @abierto = @abierto_cena
-        @horario = @horario_cena
-        @apertura = @apertura_cena
-        @cierre = @cierre_cena
-        @txtturno = 'cena'
-      end
-
       if @abierto == 1 && @horario >= @tiempo_minimo
         horaparrilla = @apertura
-        @result = Array.new
+        
 
         while horaparrilla <= @cierre-(@bloques_nec*1800) do
           @arrayhora = horaparrilla
@@ -792,7 +859,30 @@ class ApiMesafijasController < ApplicationController
           horaparrilla += 1800
         end
       end
+    else
+    # Modo reserva = 1
+      restaurantes_plazas = RestaurantesPlaza.all(
+                  select:  @txtturno+" as plazas,
+                           (select sum(comensales) from restaurantes_reservas where restaurante="+@restaurante.id.to_s+" and promocion='"+@idPromocion+"' and fecha_reserva='"+@fecha.strftime('%F').to_s+"' and turno='"+@txtturno+"' and cancelado='0') as usos",
+                  conditions:  "restaurante='"+@restaurante.id.to_s+"' and fecha='"+@fecha.strftime('%F').to_s+"'").first
+      plazas = restaurantes_plazas.plazas.to_i
+      usos = restaurantes_plazas.usos.to_i
+
+      if @abierto == 1 && @horario >= @tiempo_minimo
+        horaparrilla = @apertura
+        while horaparrilla < @cierre do
+          if @fecha == Time.zone.today && horaparrilla.to_i < @bloqueo_hora
+            @result << {horaparrilla.strftime("%R") => false}
+          elsif @personas <= (plazas - usos)
+            @result << {horaparrilla.strftime("%R") => true}
+          elsif @personas > (plazas - usos)
+            @result << {horaparrilla.strftime("%R") => "listaEspera"}
+          end
+          horaparrilla += 1800
+        end
+      end
     end
+    
 
     respond_with({"plazasmax" => @plazasmax, "result" => @result})
   end
@@ -1101,13 +1191,28 @@ class ApiMesafijasController < ApplicationController
       @ubicacion = 'm'+@mesa.to_s+'c'+@combinacion.to_s
 
     elsif @modoreservas == 1
-      # TODO : Modo reserva == 1
+    # Modo plazas
+      @txtturno = Restaurante.getTurno(@turno)
+      restaurantes_plazas = RestaurantesPlaza.all(
+                  select:  @txtturno+" as plazas,
+                           (select sum(comensales) from restaurantes_reservas where restaurante="+@restaurante.id.to_s+" and promocion='"+@idPromocion+"' and fecha_reserva='"+@fecha.strftime('%F').to_s+"' and turno='"+@txtturno+"' and cancelado='0') as usos",
+                  conditions:  "restaurante='"+@restaurante.id.to_s+"' and fecha='"+@fecha.strftime('%F').to_s+"'").first
+      plazas = restaurantes_plazas.plazas.to_i
+      usos = restaurantes_plazas.usos.to_i
+
+      if @personas <= (plazas - usos)
+        @lespera = 0
+      elsif @personas > (plazas - usos) && @restaurante.listaespera
+        @lespera = 1
+      end
+      @ubicacion = 'm0c0';
     end
 
-    fecha_alta = Time.zone.now.strftime("%F");
-    hora_alta = Time.zone.now.strftime("%T");
+    fecha_alta = Time.zone.now.strftime("%F").to_date
+    hora_alta = Time.zone.now.strftime("%T")
 
-    if RestaurantesReserva.where(:restaurante => @restaurante.id, :fecha_reserva => @fecha.strftime("%F"), :hora_reserva => @hora.strftime("%T"), :comensales => @personas, :tipo_reserva => 1, :promocion => @idPromocion, :mesa => @mesa, :combinacion => @combinacion, :tiempo => @tiempo, :observaciones => @observaciones).exists?
+    byebug
+    if RestaurantesReserva.where(:restaurante => @restaurante.id, :fecha_reserva => @fecha.strftime("%F"), :hora_reserva => @hora.strftime("%T"), :comensales => @personas, :tipo_reserva => 1, :promocion => @idPromocion, :mesa => @mesa, :combinacion => @combinacion, :tiempo => @tiempo, :observaciones => @observaciones, :lespera => 0).exists?
       respond_with("Lleno") and return
     end
 
@@ -1116,7 +1221,11 @@ class ApiMesafijasController < ApplicationController
 
     if !restUsuario.exists? 
       # TODO: Mirar el campo "medio". A lo mejor deberia ser Aviatur
-      RestaurantesUsuario.create(:restaurante => @restaurante.id, :fecha => fecha_alta, :hora => hora_alta, :nombre => @user.nombre, :apellidos => @user.apellidos, :telefono => @user.telefono, :ciudad => @user.ciudad, :medio => @user.medio, :email => @user.email, :password => @user.password)
+      RestaurantesUsuario.create(:restaurante => @restaurante.id, 
+        :fecha => fecha_alta, 
+        :hora => hora_alta, :nombre => @user.nombre, :apellidos => @user.apellidos, 
+        :telefono => @user.telefono, :ciudad => @user.ciudad, :medio => @user.medio, 
+        :email => @user.email, :password => @user.password)
     end
 
     # TODO: Mirar el campo "partner". A lo mejor deberia ser Aviatur
@@ -1139,7 +1248,7 @@ class ApiMesafijasController < ApplicationController
 
   # Servicio que permite el reconocimiento del usuario
   def usuario_login
-    respond_with(false) and return if params[:email].blank? || params[:password].blank?
+    respond_with("email o password vacio") and return if params[:email].blank? || params[:password].blank?
 
     user = RestaurantesUsuario.where(:email => params[:email], :password => OpenSSL::HMAC.hexdigest('sha256', 'colombia', params[:password]) )
 
@@ -1331,9 +1440,14 @@ class ApiMesafijasController < ApplicationController
 
   private
     # TODO : Al poner formato XML, el respond_with(false) no funciona por ejemplo en el login
-    def default_format_json
+    def default_format_xml
       request.format = "xml"
       request.format = "json" if params[:sort_by] == "json"
+    end
+
+    def default_format_json
+      request.format = "json"
+      request.format = "xml" if params[:sort_by] == "xml"
     end
 
     def check_idCliente
@@ -1361,21 +1475,22 @@ class ApiMesafijasController < ApplicationController
 
     def aperturaPromo
       if !@promo.nil?
-        @promosnummax = @promo.promociones_max
-        @promospersmin = @promo.comensales_min
-        @promospersmax = @promo.comensales_max
+        promosnummax = @promo.promociones_max
+        promospersmin = @promo.comensales_min
+        promospersmax = @promo.comensales_max
 
-        restaurantesReservas = RestaurantesReserva.select("sum(comensales) as usos").where(:restaurante => @restaurante.id.to_s, :promocion => @idPromocion, :cancelado => false)
-        usos = restaurantesReservas.usos
-        @promosnummax = promosnummax - usos
+        # byebug
+        restaurantesReservas = RestaurantesReserva.where(:restaurante => @restaurante.id.to_s, :promocion => @idPromocion, :cancelado => 0).first
+        usos = restaurantesReservas.usos unless restaurantesReservas.nil?
+        promosnummax = promosnummax - usos.to_i
         if promosnummax < promospersmax
           promospersmax = promosnummax
         end
 
-        arrayplazaspromo = Array.new
+        @arrayplazaspromo = Array.new
         numplazaspromo = promospersmin
         while numplazaspromo <= promospersmax do
-          arrayplazaspromo << numplazaspromo
+          @arrayplazaspromo << numplazaspromo
           numplazaspromo += 1
         end
       end
@@ -1451,6 +1566,7 @@ class ApiMesafijasController < ApplicationController
     end
 
     def tiempoPorMesaTurno
+      @tiempo_minimo = 0
       if @modoreservas == 0
         restaurantesTiempos = RestaurantesTiempo.select("least(tiempo_1,tiempo_2,tiempo_3,tiempo_4,tiempo_5,tiempo_6,tiempo_7,tiempo_8,tiempo_9,tiempo_10,tiempo_grupos) as tiempo_minimo").where(:restaurante => @restaurante.id).first
 
