@@ -1,6 +1,6 @@
 class RestaurantesUsuario < ActiveRecord::Base
     self.primary_key = :id_usuario
-    belongs_to :restaurante, :foreign_key => 'restaurante', :primary_key => 'idrestaurante', :class_name => 'Restaurante'
+    belongs_to :restaurant, :foreign_key => 'restaurante', :primary_key => 'idrestaurante', :class_name => 'Restaurante'
 
     def getTipoUsuario
     	# (SELECT count(*) FROM restaurantes_reservas WHERE usuario=restaurantes_usuarios.id_usuario and cancelado=0 and fecha_reserva<'$hoy') AS numreservas

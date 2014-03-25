@@ -915,7 +915,7 @@ class ApiMesafijasController < ApplicationController
 
     @modoreservas = @restaurante.modoreservas
 
-    @observaciones = params[:observaciones]
+    @observaciones = params[:observaciones].to_s
 
     if @modoreservas == 0
       if @turno == 1
@@ -1205,13 +1205,15 @@ class ApiMesafijasController < ApplicationController
       elsif @personas > (plazas - usos) && @restaurante.listaespera
         @lespera = 1
       end
-      @ubicacion = 'm0c0';
+      @ubicacion = 'm0c0'
+      @combinacion = 0
+      @mesa = 0
+      @tiempo = 0
     end
 
-    fecha_alta = Time.zone.now.strftime("%F").to_date
+    fecha_alta = Time.zone.now.strftime("%F")
     hora_alta = Time.zone.now.strftime("%T")
 
-    byebug
     if RestaurantesReserva.where(:restaurante => @restaurante.id, :fecha_reserva => @fecha.strftime("%F"), :hora_reserva => @hora.strftime("%T"), :comensales => @personas, :tipo_reserva => 1, :promocion => @idPromocion, :mesa => @mesa, :combinacion => @combinacion, :tiempo => @tiempo, :observaciones => @observaciones, :lespera => 0).exists?
       respond_with("Lleno") and return
     end
@@ -1221,11 +1223,7 @@ class ApiMesafijasController < ApplicationController
 
     if !restUsuario.exists? 
       # TODO: Mirar el campo "medio". A lo mejor deberia ser Aviatur
-      RestaurantesUsuario.create(:restaurante => @restaurante.id, 
-        :fecha => fecha_alta, 
-        :hora => hora_alta, :nombre => @user.nombre, :apellidos => @user.apellidos, 
-        :telefono => @user.telefono, :ciudad => @user.ciudad, :medio => @user.medio, 
-        :email => @user.email, :password => @user.password)
+      RestaurantesUsuario.create(:restaurante => @restaurante.id, :fecha => fecha_alta, :hora => hora_alta, :nombre => @user.nombre, :apellidos => @user.apellidos, :telefono => @user.telefono, :ciudad => @user.ciudad, :medio => @user.medio, :email => @user.email, :password => @user.password, :nota => "")
     end
 
     # TODO: Mirar el campo "partner". A lo mejor deberia ser Aviatur

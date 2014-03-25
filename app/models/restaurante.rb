@@ -1,5 +1,4 @@
 class Restaurante < ActiveRecord::Base
-    include Auxiliar
     self.primary_key = :idrestaurante
     belongs_to :zona, :foreign_key => 'zona', :primary_key => 'idzona', :class_name => 'Zona'
     belongs_to :ciudad, :foreign_key => 'ciudad', :primary_key => 'idciudad', :class_name => 'Ciudade'
