@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>To Do List</title>
     <style type="text/css" media="screen">
       html, body {
@@ -11,37 +12,427 @@
       }
       a { color: #0000FF; }
 
-      #container {
-        width: 75%;
-        margin: 0 auto;
-        background-color: #FFF;
-        padding: 20px 40px;
-        border: solid 1px black;
-        margin-top: 20px;
-      }
+      .bs-docs-sidebar .nav>.active>a, .bs-docs-sidebar .nav>.active:hover>a, .bs-docs-sidebar .nav>.active:focus>a {
+        padding-left: 18px;
+        font-weight: 700;
+        color: #563d7c;
+        background-color: transparent;
+        border-left: 2px solid #563d7c;}
     </style>
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
-  <body>
-    <div id="container">
-      <h1>Funciones</h1>
-      <ul id="tasks">
-        <li><a href="/init">init</a></li>
-        <li><a href="/rest_lista">rest_lista</a></li>
-        <li><a href="/rest_datos">rest_datos</a></li>
-        <li><a href="/rest_disponibilidad_rango_plazas">rest_disponibilidad_rango_plazas</a></li>
-        <li><a href="/rest_disponibilidad_horas_disponibles">rest_disponibilidad_horas_disponibles</a></li>
-        <li><a href="/rest_reserva_agregar">rest_reserva_agregar</a></li>
-        <li><a href="/rest_reserva_cancelar">rest_reserva_cancelar</a></li>
-        <li><a href="/usuario_login">usuario_login</a></li>
-        <li><a href="/usuario_regpswd">usuario_regpswd</a></li>
-        <li><a href="/usuario_registro">usuario_registro</a></li>
-        <li><a href="/usuario_datos">usuario_datos</a></li>
-        <li><a href="/usuario_editar">usuario_editar</a></li>
-        <li><a href="/valoracion">valoracion</a></li>
-        <li><a href="/usuario_favorito_agregar">usuario_favorito_agregar</a></li>
-        <li><a href="/usuario_favorito_eliminar">usuario_favorito_eliminar</a></li>
-        <li><a href="/preguntas">preguntas</a></li>
-      </ul>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css">
+
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+  <body data-spy="scroll" data-target=".navbar-example">
+    <div class="container" style="margin: 25px auto ;">
+      <div class="row">
+        <div class="col-md-9" role="main">
+          <h1>API Mesafija</h1>
+
+          <!-- INIT -->
+          <div class="page-header" id="init">
+            <h1>Init <small>Subtext for header</small></h1>
+          </div>
+
+          <form action="/init" method="get" role="form" target="_blank">
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- Rest_lista -->
+          <div class="page-header" id="rest_lista">
+            <h1>Rest_lista <small>Servicio que suministra el listado de restaurantes con sus datos básicos</small></h1>
+          </div>
+
+          <form action="/rest_lista" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id ciudad</label>
+              <input type="text" class="form-control" id="ciudad" placeholder="Id ciudad" name="ciudad">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputPassword1">Id zona</label>
+              <input type="text" class="form-control" id="zona" placeholder="Id zona" name="zona">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id tipo cocina</label>
+              <input type="text" class="form-control" id="tipoCocina" placeholder="Id tipo cocina" name="tipoCocina">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputPassword1">Id corte precio</label>
+              <input type="text" class="form-control" id="cortePrecio" placeholder="Id corte precio" name="cortePrecio">
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- Rest_datos -->
+          <div class="page-header" id="rest_datos">
+            <h1>Rest_datos <small>Servicio que suministra el detalle de restaurante</small></h1>
+          </div>
+
+          <form action="/rest_datos" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id restaurante</label>
+              <input type="text" class="form-control" id="idRestaurante" placeholder="Id restaurante" name="idRestaurante">
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- Rest_disponibilidad_calendario -->
+          <div class="page-header" id="rest_disponibilidad_calendario">
+            <h1>Rest_disponibilidad_calendario <small>Muestra los dias del calendario disponibles</small></h1>
+          </div>
+
+          <form action="/rest_disponibilidad_calendario" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id restaurante</label>
+              <input type="text" class="form-control" id="idRestaurante" placeholder="Id restaurante" name="idRestaurante">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Mes</label>
+              <input type="text" class="form-control" id="mes" placeholder="Mes" name="mes">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Año</label>
+              <input type="text" class="form-control" id="anyo" placeholder="Año" name="anyo">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id promocion</label>
+              <input type="text" class="form-control" id="idPromocion" placeholder="Id promocion" name="idPromocion">
+            </div>
+            <button type="submit" class="btn btn-default" disabled="disabled">Enviar</button>
+          </form>
+
+          <!-- Rest_disponibilidad_rango_plazas -->
+          <div class="page-header" id="rest_disponibilidad_rango_plazas">
+            <h1>Rest_disponibilidad_rango_plazas <small>Servicio que suministra rango de comensales disponibles del restaurante</small></h1>
+          </div>
+
+          <form action="/rest_disponibilidad_rango_plazas" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id restaurante</label>
+              <input type="text" class="form-control" id="idRestaurante" placeholder="Id restaurante" name="idRestaurante">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Fecha</label>
+              <input type="text" class="form-control" id="fecha" placeholder="Fecha" name="fecha">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id promocion</label>
+              <input type="text" class="form-control" id="idPromocion" placeholder="Id promocion" name="idPromocion">
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- idRestaurante=126&fecha=2014-03-09&comensales=1 -->
+          <!-- Rest_disponibilidad_turno_disponibles -->
+          <div class="page-header" id="rest_disponibilidad_turno_disponibles">
+            <h1>Rest_disponibilidad_turno_disponibles <small>Servicio que suministra los turnos disponibles del restaurante. Si suministramos además el número de comensales, nos devolverá los horarios disponibles para la fecha y número de comensales seleccionados</small></h1>
+          </div>
+
+          <form action="/rest_disponibilidad_turno_disponibles" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id restaurante</label>
+              <input type="text" class="form-control" id="idRestaurante" placeholder="Id restaurante" name="idRestaurante">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Fecha</label>
+              <input type="text" class="form-control" id="fecha" placeholder="Fecha" name="fecha">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Comensales</label>
+              <input type="text" class="form-control" id="comensales" placeholder="Comensales" name="comensales">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id promocion</label>
+              <input type="text" class="form-control" id="idPromocion" placeholder="Id promocion" name="idPromocion">
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- idRestaurante=126&fecha=2014-03-09&comensales=1&turno=4 -->
+          <!-- Rest_disponibilidad_horas_disponibles -->
+          <div class="page-header" id="rest_disponibilidad_horas_disponibles">
+            <h1>Rest_disponibilidad_horas_disponibles <small>Servicio que suministra las horas disponibles del restaurante</small></h1>
+          </div>
+
+          <form action="/rest_disponibilidad_horas_disponibles" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id restaurante</label>
+              <input type="text" class="form-control" id="idRestaurante" placeholder="Id restaurante" name="idRestaurante">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Fecha</label>
+              <input type="text" class="form-control" id="fecha" placeholder="Fecha" name="fecha">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Comensales</label>
+              <input type="text" class="form-control" id="comensales" placeholder="Comensales" name="comensales">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Turno</label>
+              <input type="text" class="form-control" id="turno" placeholder="Turno" name="turno">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id promocion</label>
+              <input type="text" class="form-control" id="idPromocion" placeholder="Id promocion" name="idPromocion">
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- Rest_reserva_agregar -->
+          <div class="page-header" id="rest_reserva_agregar">
+            <h1>Rest_reserva_agregar <small>Servicio que permite reservar mediante los datos proporcionados con los servicios rest_disponibilidad y usuario_datos</small></h1>
+          </div>
+
+          <form action="/rest_reserva_agregar" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id restaurante</label>
+              <input type="text" class="form-control" id="idRestaurante" placeholder="Id restaurante" name="idRestaurante">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id usuario</label>
+              <input type="text" class="form-control" id="idUsuario" placeholder="Id usuario" name="idUsuario">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Fecha</label>
+              <input type="text" class="form-control" id="fecha" placeholder="Fecha" name="fecha">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Comensales</label>
+              <input type="text" class="form-control" id="comensales" placeholder="Comensales" name="comensales">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Turno</label>
+              <input type="text" class="form-control" id="turno" placeholder="Turno" name="turno">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Hora</label>
+              <input type="text" class="form-control" id="hora" placeholder="Hora" name="hora">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id promocion</label>
+              <input type="text" class="form-control" id="idPromocion" placeholder="Id promocion" name="idPromocion">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Observaciones</label>
+              <textarea class="form-control" rows="3" id="observaciones" placeholder="Observaciones" name="observaciones"></textarea>
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- Rest_reserva_cancelar -->
+          <div class="page-header" id="rest_reserva_cancelar">
+            <h1>Rest_reserva_cancelar <small>Servicio que permite cancelar una reserva mediante los datos proporcionados con el servicio usuario_datos</small></h1>
+          </div>
+
+          <form action="/rest_reserva_cancelar" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id reserva</label>
+              <input type="text" class="form-control" id="id_reserva" placeholder="Id reserva" name="id_reserva">
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- Usuario_login -->
+          <div class="page-header" id="usuario_login">
+            <h1>Usuario_login <small>Servicio que permite el reconocimiento del usuario</small></h1>
+          </div>
+
+          <form action="/usuario_login" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Email</label>
+              <input type="text" class="form-control" id="email" placeholder="Email" name="email">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Password</label>
+              <input type="text" class="form-control" id="password" placeholder="Password" name="password">
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- Usuario_regpswd -->
+          <div class="page-header" id="usuario_regpswd">
+            <h1>Usuario_regpswd <small>Servicio que permite procesar la regeneración de password del usuario</small></h1>
+          </div>
+
+          <form action="/usuario_regpswd" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Email</label>
+              <input type="text" class="form-control" id="email" placeholder="Email" name="email">
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- Usuario_registro -->
+          <div class="page-header" id="usuario_registro">
+            <h1>Usuario_registro <small>Servicio que permite el registro del usuario</small></h1>
+          </div>
+
+          <form action="/usuario_registro" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Nombre</label>
+              <input type="text" class="form-control" id="nombre" placeholder="Nombre" name="nombre">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Apellidos</label>
+              <input type="text" class="form-control" id="apellidos" placeholder="Apellidos" name="apellidos">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Telefono</label>
+              <input type="text" class="form-control" id="telefono" placeholder="Telefono" name="telefono">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Ciudad</label>
+              <input type="text" class="form-control" id="ciudad" placeholder="Ciudad" name="ciudad">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Email</label>
+              <input type="text" class="form-control" id="email" placeholder="Email" name="email">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Password</label>
+              <input type="text" class="form-control" id="password" placeholder="Password" name="password">
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- Usuario_datos -->
+          <div class="page-header" id="usuario_datos">
+            <h1>Usuario_datos <small>Servicio que permite acceder a los datos de usuario</small></h1>
+          </div>
+
+          <form action="/usuario_datos" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id usuario</label>
+              <input type="text" class="form-control" id="idUsuario" placeholder="Id usuario" name="idUsuario">
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- Usuario_editar -->
+          <div class="page-header" id="usuario_editar">
+            <h1>Usuario_editar <small>Servicio que permite editar los datos de usuario mediante los datos proporcionados con el servicio usuario_datos</small></h1>
+          </div>
+
+          <form action="/usuario_editar" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id usuario</label>
+              <input type="text" class="form-control" id="idUsuario" placeholder="Id usuario" name="idUsuario">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Nombre</label>
+              <input type="text" class="form-control" id="nombre" placeholder="Nombre" name="nombre">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Apellidos</label>
+              <input type="text" class="form-control" id="apellidos" placeholder="Apellidos" name="apellidos">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Telefono</label>
+              <input type="text" class="form-control" id="telefono" placeholder="Telefono" name="telefono">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Ciudad</label>
+              <input type="text" class="form-control" id="ciudad" placeholder="Ciudad" name="ciudad">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Email</label>
+              <input type="text" class="form-control" id="email" placeholder="Email" name="email">
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- Valoracion -->
+          <div class="page-header" id="valoracion">
+            <h1>Valoracion <small>Servicio que permite valorar un restaurante por el usuario mediante los datos proporcionados con el servicio usuario_datos</small></h1>
+          </div>
+
+          <form action="/valoracion" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id restaurante</label>
+              <input type="text" class="form-control" id="idRestaurante" placeholder="Id restaurante" name="idRestaurante">
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- Usuario_favorito_agregar -->
+          <div class="page-header" id="usuario_favorito_agregar">
+            <h1>Usuario_favorito_agregar <small>Servicio que permite marcar un restaurante como favorito por el usuario mediante los datos proporcionados con el servicio usuario_datos</small></h1>
+          </div>
+
+          <form action="/usuario_favorito_agregar" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id usuario</label>
+              <input type="text" class="form-control" id="idUsuario" placeholder="Id usuario" name="idUsuario">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id restaurante</label>
+              <input type="text" class="form-control" id="idRestaurante" placeholder="Id restaurante" name="idRestaurante">
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- Usuario_favorito_eliminar -->
+          <div class="page-header" id="usuario_favorito_eliminar">
+            <h1>Usuario_favorito_eliminar <small>Servicio que permite desmarcar un restaurante como favorito por el usuario mediante los datos proporcionados con el servicio usuario_datos</small></h1>
+          </div>
+
+          <form action="/usuario_favorito_eliminar" method="get" role="form" target="_blank">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id favorito</label>
+              <input type="text" class="form-control" id="idFavorito" placeholder="Id favorito" name="idFavorito">
+            </div>
+            <p>-------</p>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id usuario</label>
+              <input type="text" class="form-control" id="idUsuario" placeholder="Id usuario" name="idUsuario">
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Id restaurante</label>
+              <input type="text" class="form-control" id="idRestaurante" placeholder="Id restaurante" name="idRestaurante">
+            </div>
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+
+          <!-- Preguntas -->
+          <div class="page-header" id="preguntas">
+            <h1>Preguntas <small>Servicio que permite listar todas las preguntas frecuentes</small></h1>
+          </div>
+
+          <form action="/preguntas" method="get" role="form" target="_blank">
+            <button type="submit" class="btn btn-default">Enviar</button>
+          </form>
+        </div>
+        <div class="col-md-3">
+          <div class="navbar-example bs-docs-sidebar" data-spy="affix">
+            <h4>Funciones</h4>
+            <ul class="nav bs-docs-sidenav" id="tasks">
+              <li><a href="#init">init</a></li>
+              <li><a href="#rest_lista">rest_lista</a></li>
+              <li><a href="#rest_datos">rest_datos</a></li>
+              <li><a href="#rest_disponibilidad_calendario">rest_disponibilidad_calendario</a></li>
+              <li><a href="#rest_disponibilidad_rango_plazas">rest_disponibilidad_rango_plazas</a></li>
+              <li><a href="#rest_disponibilidad_turno_disponibles">rest_disponibilidad_turno_disponibles</a></li>
+              <li><a href="#rest_disponibilidad_horas_disponibles">rest_disponibilidad_horas_disponibles</a></li>
+              <li><a href="#rest_reserva_agregar">rest_reserva_agregar</a></li>
+              <li><a href="#rest_reserva_cancelar">rest_reserva_cancelar</a></li>
+              <li><a href="#usuario_login">usuario_login</a></li>
+              <li><a href="#usuario_regpswd">usuario_regpswd</a></li>
+              <li><a href="#usuario_registro">usuario_registro</a></li>
+              <li><a href="#usuario_datos">usuario_datos</a></li>
+              <li><a href="#usuario_editar">usuario_editar</a></li>
+              <li><a href="#valoracion">valoracion</a></li>
+              <li><a href="#usuario_favorito_agregar">usuario_favorito_agregar</a></li>
+              <li><a href="#usuario_favorito_eliminar">usuario_favorito_eliminar</a></li>
+              <li><a href="#preguntas">preguntas</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
   </body>
 </html>
