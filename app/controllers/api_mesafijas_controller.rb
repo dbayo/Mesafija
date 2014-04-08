@@ -161,7 +161,7 @@ class ApiMesafijasController < ApplicationController
       @bloques_nec = (restaurantesTiempos.tiempo_grupos.hour.hour + restaurantesTiempos.tiempo_grupos.min.minutes) / 1800
     end
 
-    # TODO: Para que sirve bloqueo dia?
+    # TODO: Para que sirve bloqueo dia? => El mismo dia no se puede reservar
     @bloqueo_dia = @restaurante.bloqueo_dia
     # TODO: margen_reserva se utiliza en el codigo PHP ?
     @margen_reserva = @restaurante.margen_reserva.hour.hour + @restaurante.margen_reserva.min.minutes
@@ -594,7 +594,6 @@ class ApiMesafijasController < ApplicationController
       else
         result << {"Break a.m." => false}
       end
-      byebug
 
       if @abierto_almuerzo == 1 && @personas <= plazasalmuerzo - usosplazasalmuerzo
         result << {"Almuerzo" => true}
@@ -1478,7 +1477,7 @@ class ApiMesafijasController < ApplicationController
         promospersmax = @promo.comensales_max
 
         # byebug
-        restaurantesReservas = RestaurantesReserva.where(:restaurante => @restaurante.id.to_s, :promocion => @idPromocion, :cancelado => 0).first
+        restaurantesReservas = RestaurantesReserva.select("sum(comensales) as usos").where(:restaurante => @restaurante.id.to_s, :promocion => @idPromocion, :cancelado => 0).first
         usos = restaurantesReservas.usos unless restaurantesReservas.nil?
         promosnummax = promosnummax - usos.to_i
         if promosnummax < promospersmax
