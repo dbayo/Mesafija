@@ -1,47 +1,55 @@
 class ApiMesafijasController < ApplicationController
   include ActionController::MimeResponds
   include ActionController::ImplicitRender
-  before_filter :default_format_json
+  before_filter :default_format_xml
   before_filter :check_idCliente
   respond_to :xml, :json
 
   # Servicio utilizado para conseguir los valores de inicialización de mesafija.com
   def init
     result = []
-    result << {
-      "Ciudades" => Ciudade.where(:visible => true).map{|ciudad| {"id" => ciudad.idciudad, "nombre" => ciudad.ciudad} }
-    }
-    result << {
-      "Zonas" => Zona.where(:visible => true).map{|zona| {"id" => zona.idzona, "nombre" => zona.zona} }
-    }
-    result << {
-      "TipoCocina" => TiposCocina.where(:visible => true).order("orden ASC").map{|tipoCocina| {"id" => tipoCocina.idtipococina, "nombre" => tipoCocina.tipococina} }
-    }
-    result << {
-      "CortesPrecio" => RangosPrecio.where(:visible => true).order("orden ASC").map{|cortePrecio| {"id" => cortePrecio.idrangoprecio, "nombre" => cortePrecio.rangoprecio} }
-    }
-    result << {
-      "Medios" => Medio.where(:visible => true, :borrado => false).order("orden ASC").map{|medio| {"id" => medio.idmedio, "nombre" => medio.medio} }
-    }
+    @ciudades = Ciudade.where(:visible => true)
+    @zonas = Zona.where(:visible => true)
+    @tipoCocinas = TiposCocina.where(:visible => true).order("orden ASC")
+    @cortesPrecio = RangosPrecio.where(:visible => true).order("orden ASC")
+    @medios = Medio.where(:visible => true, :borrado => false).order("orden ASC")
 
     respond_with do |format|
       format.json { render json: result }
-      format.xml { render xml: result }
+      format.xml { render '/app/views/api_mesafijas/init.xml.builder' }
     end
   end
+
+  # result = []
+  #   result << {
+  #     "Ciudades" => Ciudade.where(:visible => true).map{|ciudad| {"id" => ciudad.idciudad, "nombre" => ciudad.ciudad} }
+  #   }
+  #   result << {
+  #     "Zonas" => Zona.where(:visible => true).map{|zona| {"id" => zona.idzona, "nombre" => zona.zona} }
+  #   }
+  #   result << {
+  #     "TipoCocina" => TiposCocina.where(:visible => true).order("orden ASC").map{|tipoCocina| {"id" => tipoCocina.idtipococina, "nombre" => tipoCocina.tipococina} }
+  #   }
+  #   result << {
+  #     "CortesPrecio" => RangosPrecio.where(:visible => true).order("orden ASC").map{|cortePrecio| {"id" => cortePrecio.idrangoprecio, "nombre" => cortePrecio.rangoprecio} }
+  #   }
+  #   result << {
+  #     "Medios" => Medio.where(:visible => true, :borrado => false).order("orden ASC").map{|medio| {"id" => medio.idmedio, "nombre" => medio.medio} }
+  #   }
 
   # Servicio que suministra el listado de restaurantes con sus datos básicos
   def rest_lista
     restaurantes = Restaurante.where(:visible => true)
     restaurantes = restaurantes.where(:zona => params[:zona]) unless params[:zona].blank?
     restaurantes = restaurantes.where(:ciudad => params[:ciudad]) unless params[:ciudad].blank?
-    restaurantes = restaurantes.join(:tipoCocina).where("" => params[:tipoCocina]) unless params[:tipoCocina].blank?
+    restaurantes = restaurantes.joins(:asgTiposCocina).where("asg_tipos_cocina.tipoCocina = ?", params[:tipoCocina]) unless params[:tipoCocina].blank?
     restaurantes = restaurantes.where(:idrestaurante => params[:id]) unless params[:id].blank?
+    # TODO: "falta el corte precio"
     restaurantes = restaurantes.order(:nombre)
 
-    result = []
+    @result = []
     restaurantes.each do |restaurante|
-      result << {
+      @result << {
         "id_restaurante" => restaurante.id,
         "nombre" => restaurante.nombre,
         "ciudad" => restaurante.ciudad.ciudad,
@@ -52,28 +60,23 @@ class ApiMesafijasController < ApplicationController
       }
     end
 
-    case params[:ordenacion]
-    when 'nom'
-      result.sort_by{ |k, v| k[:nombre] }
-    when 'val'
-      result.sort_by { |k, v| k[:valoracion][:sumcocina].to_i + k[:valoracion][:sumambiente].to_i + k[:valoracion][:sumcalidadprecio].to_i + k[:valoracion][:sumservicio].to_i + k[:valoracion][:sumlimpieza].to_i}
-    when 'res'
-      result.sort_by{ |k, v| k[:nombre] }
-    end unless params[:ordenacion].blank?
+    if !params[:ordenacion].blank? && params[:ordenacion] == 'val'
+      @result.sort_by { |k, v| k[:valoracion][:sumcocina].to_i + k[:valoracion][:sumambiente].to_i + k[:valoracion][:sumcalidadprecio].to_i + k[:valoracion][:sumservicio].to_i + k[:valoracion][:sumlimpieza].to_i}
+    end
 
-    result.reverse if !params[:orden].blank? && params[:orden] == "asc"
+    @result.reverse if !params[:orden].blank? && params[:orden] == "asc"
 
     respond_with do |format|
-      format.json { render json: result }
-      format.xml { render xml: result }
+      format.json { render json: @result }
+      format.xml { render '/app/views/api_mesafijas/rest_lista.xml.builder'  }
     end
   end
 
   # Servicio que suministra el detalle de restaurante
   def rest_datos
     restaurante = Restaurante.where(:idrestaurante => params[:idRestaurante]).first
-    respond_with(nil) and return if restaurante.nil?
-    result = {
+    showError("No existe el restaurante") and return if restaurante.nil?
+    @result = {
       "id_restaurante" => restaurante.idrestaurante,
       "nombre" => restaurante.nombre,
       "latitud" => restaurante.lat,
@@ -91,8 +94,8 @@ class ApiMesafijasController < ApplicationController
     } unless restaurante.nil?
 
     respond_to do |format|
-      format.json { render json: result }
-      format.xml { render xml: result }
+      format.json { render json: @result }
+      format.xml { render '/app/views/api_mesafijas/rest_datos.xml.builder' }
     end
   end
 
@@ -100,13 +103,13 @@ class ApiMesafijasController < ApplicationController
   # ?idRestaurante=126&mes=3&anyo=2014
   def rest_disponibilidad_calendario
     @restaurante = Restaurante.where(:idrestaurante => params[:idRestaurante]).first
-    respond_with(nil) and return if @restaurante.nil?
+    showError("No existe el restaurante") and return if restaurante.nil?
 
     @mes = params[:mes].to_i
-    respond_with("Falta mes") and return if @mes.nil?
+    showError("Falta el mes") and return if restaurante.nil?
 
     @anyo = params[:anyo].to_i
-    respond_with("Falta año") and return if @anyo.nil?
+    showError("Falta el año") and return if restaurante.nil?
 
     @hoy = Time.zone.now.strftime("%F")
     @fecha = Time.zone.parse(@anyo.to_s+"-"+@mes.to_s+"-"+"1")
@@ -184,7 +187,7 @@ class ApiMesafijasController < ApplicationController
         # Calculo letra dia semana
         # TODO : Hacer todo el calculo interno
         result << {i => true}
-      end 
+      end
     end
 
     # byebug
@@ -193,16 +196,17 @@ class ApiMesafijasController < ApplicationController
 
   end
 
-  # Servicio que suministra la disponibilidad del restaurante. Si solicitamos solamente fecha nos devolverá 
-  # el rango de plazas disponible. 
+  # Servicio que suministra la disponibilidad del restaurante. Si solicitamos solamente fecha nos devolverá
+  # el rango de plazas disponible.
   def rest_disponibilidad_rango_plazas
     # Buscar en include-reservas-personas.php, en if($modoreservas==1){
     # idRestaurante=126&fecha=2014-01-16
 
     @restaurante = Restaurante.where(:idrestaurante => params[:idRestaurante]).first
-    respond_with(nil) and return if @restaurante.nil?
+    showError("No existe el restaurante") and return if @restaurante.nil?
 
-    @fecha = Time.zone.parse(params[:fecha]) unless params[:fecha].blank?
+    showError("Falta la fecha. El formato de la fecha es “AAAA-MM-DD” ie: 2014-01-16") and return if params[:fecha].blank?
+    @fecha = Time.zone.parse(params[:fecha])
     @fecha = Time.zone.now if @fecha.blank?
     @letraDia = getLetraDia(@fecha)
 
@@ -330,12 +334,12 @@ class ApiMesafijasController < ApplicationController
 
       arrayplazasord = @arrayplazas.uniq
 
-      result = Array.new
+      @result = Array.new
       (@plazasmin..@plazasmax).each do |i|
         if !@promo.blank?
-          result << {i => (arrayplazasord.include?(i) && @arrayplazaspromo.include?(i))}
+          @result << {i => (arrayplazasord.include?(i) && @arrayplazaspromo.include?(i))}
         else
-          result << {i => arrayplazasord.include?(i)}
+          @result << {i => arrayplazasord.include?(i)}
         end
       end
     else
@@ -393,33 +397,37 @@ class ApiMesafijasController < ApplicationController
       @plazasmax = [plazasbreak,plazasalmuerzo,plazasonces,plazascena].max
       plazaslibresmax = [plazaslibresbreak,plazaslibresalmuerzo,plazaslibresonces,plazaslibrescena].max
 
-      result = Array.new
+      @result = Array.new
       (1..@plazasmax).each do |i|
         if i <= plazaslibresmax
-          result << {i => true}
+          @result << {i => true}
         elsif @restaurante.listaespera
-          result << {i => "listaEspera"}
+          @result << {i => "listaEspera"}
         else
-          result << {i => false}
+          @result << {i => false}
         end
       end
     end
-    respond_with({"plazasmax" => @plazasmax, "result" => result})
+    respond_to do |format|
+      format.json { render json: @result }
+      format.xml { render '/app/views/api_mesafijas/rest_disponibilidad_rango_plazas.xml.builder' }
+    end
   end
 
-  # Servicio que suministra la disponibilidad del restaurante. Si suministramos además el número de comensales, nos devolverá los 
+  # Servicio que suministra la disponibilidad del restaurante. Si suministramos además el número de comensales, nos devolverá los
   # horarios disponibles para la fecha y número de comensales seleccionados
   # ?idRestaurante=126&fecha=2014-03-09&comensales=1
   def rest_disponibilidad_turno_disponibles
     @restaurante = Restaurante.where(:idrestaurante => params[:idRestaurante]).first
-    respond_with(nil) and return if @restaurante.nil?
+    showError("No existe el restaurante") and return if @restaurante.nil?
 
-    @fecha = Time.zone.parse(params[:fecha]) unless params[:fecha].blank?
+    showError("Falta la fecha. El formato de la fecha es “AAAA-MM-DD” ie: 2014-01-16") and return if params[:fecha].blank?
+    @fecha = Time.zone.parse(params[:fecha])
     @fecha = Time.zone.now if @fecha.blank?
     @letraDia = getLetraDia(@fecha)
 
+    showError("Falta numero de comensales. Debe de ser un entero") and return if params[:comensales].blank?
     @personas = params[:comensales].to_i
-    @personas = 2 if params[:comensales].blank?
 
     turno = 0
 
@@ -530,7 +538,7 @@ class ApiMesafijasController < ApplicationController
         calculoAlmuerzoCombinacion
         calculoOnceCombinacion
         calculoCenaCombinacion
-        
+
         # Extraccion de plazas disponibles
         if @bloques_nec <= @maxbloquesbreak then @combbreak = 1 end
         if @bloques_nec <= @maxbloquesalmuerzo then @combalmuerzo = 1 end
@@ -538,11 +546,11 @@ class ApiMesafijasController < ApplicationController
         if @bloques_nec <= @maxbloquescena then @combcena = 1 end
       end
 
-      result = Array.new
-      result << {"Break a.m." => (@mesasbreak==1 || @combbreak==1)}
-      result << {"Almuerzo" => (@mesasalmuerzo==1 || @combalmuerzo==1)}
-      result << {"Break p.m." => (@mesasonces==1 || @combonces==1)}
-      result << {"Cena" => (@mesascena==1 || @combcena==1)}
+      @result = Array.new
+      @result << {"Break a.m." => (@mesasbreak==1 || @combbreak==1)}
+      @result << {"Almuerzo" => (@mesasalmuerzo==1 || @combalmuerzo==1)}
+      @result << {"Break p.m." => (@mesasonces==1 || @combonces==1)}
+      @result << {"Cena" => (@mesascena==1 || @combcena==1)}
     else
     # Modo reserva == 1
       @abierto_break = @restaurante['break_'+@letraDia]
@@ -585,41 +593,44 @@ class ApiMesafijasController < ApplicationController
       usosplazascena = restaurantes_plazas['usosplazascena'].to_i
       # byebug
 
-      
-      result = Array.new
+
+      @result = Array.new
       if @abierto_break == 1 && @personas <= plazasbreak - usosplazasbreak
-        result << {"Break a.m." => true}
+        @result << {"Break a.m." => true}
       elsif @abierto_break == 1 && @restaurante.listaespera == 1 && @personas <= plazasbreak && @personas > (plazasbreak-usosplazasbreak)
-        result << {"Break a.m." => "listaEspera"}
+        @result << {"Break a.m." => "listaEspera"}
       else
-        result << {"Break a.m." => false}
+        @result << {"Break a.m." => false}
       end
 
       if @abierto_almuerzo == 1 && @personas <= plazasalmuerzo - usosplazasalmuerzo
-        result << {"Almuerzo" => true}
+        @result << {"Almuerzo" => true}
       elsif @abierto_almuerzo == 1 && @restaurante.listaespera == 1 && @personas <= plazasalmuerzo && @personas > (plazasalmuerzo-usosplazasalmuerzo)
-        result << {"Almuerzo" => "listaEspera"}
+        @result << {"Almuerzo" => "listaEspera"}
       else
-        result << {"Almuerzo" => false}
+        @result << {"Almuerzo" => false}
       end
 
       if @abierto_onces == 1 && @personas <= plazasonces - usosplazasonces
-        result << {"Break p.m." => true}
+        @result << {"Break p.m." => true}
       elsif @abierto_onces == 1 && @restaurante.listaespera == 1 && @personas <= plazasonces && @personas > (plazasonces-usosplazasonces)
-        result << {"Break p.m." => "listaEspera"}
+        @result << {"Break p.m." => "listaEspera"}
       else
-        result << {"Break p.m." => false}
+        @result << {"Break p.m." => false}
       end
 
       if @abierto_cena == 1 && @personas <= plazascena - usosplazascena
-        result << {"Cena" => true}
+        @result << {"Cena" => true}
       elsif @abierto_cena == 1 && @restaurante.listaespera == 1 && @personas <= plazascena && @personas > (plazascena-usosplazascena)
-        result << {"Cena" => "listaEspera"}
+        @result << {"Cena" => "listaEspera"}
       else
-        result << {"Cena" => false}
+        @result << {"Cena" => false}
       end
     end
-    respond_with({"plazasmax" => @plazasmax, "result" => result})
+    respond_to do |format|
+      format.json { render json: @result }
+      format.xml { render '/app/views/api_mesafijas/rest_disponibilidad_turno_disponibles.xml.builder' }
+    end
   end
 
   # idRestaurante=126&fecha=2014-03-09&comensales=1&turno=4
@@ -693,7 +704,7 @@ class ApiMesafijasController < ApplicationController
     if @modoreservas == 0
       if @abierto == 1 && @horario >= @tiempo_minimo
         horaparrilla = @apertura
-        
+
 
         while horaparrilla <= @cierre-(@bloques_nec*1800) do
           @arrayhora = horaparrilla
@@ -881,12 +892,13 @@ class ApiMesafijasController < ApplicationController
         end
       end
     end
-    
-
-    respond_with({"plazasmax" => @plazasmax, "result" => @result})
+    respond_to do |format|
+      format.json { render json: @result }
+      format.xml { render '/app/views/api_mesafijas/rest_disponibilidad_horas_disponibles.xml.builder' }
+    end
   end
 
-  # Servicio que permite reservar mediante los datos proporcionados con los servicios rest- 
+  # Servicio que permite reservar mediante los datos proporcionados con los servicios rest-
   # disponibilidad.php y usuario-datos.php
   # Mirar el code-reserva-guardar.php
   def rest_reserva_agregar
@@ -926,7 +938,7 @@ class ApiMesafijasController < ApplicationController
       elsif @turno == 4
         @txtturno = 'cena'
       end
-      
+
       # TODO : Mirar si en los demas sitios que pone ".day - 1).day" estan bien. Sino, hacerlo como esto.
       @horaabs = @fecha.change({:hour => @hora.hour, :min => @hora.min })
       @horaabs = @horaabs + 1.day unless @hora.today?
@@ -1220,39 +1232,45 @@ class ApiMesafijasController < ApplicationController
     # Comprobamos si está dado de alta en el restaurante seleccionado
     restUsuario = RestaurantesUsuario.where(:email => @user.email, :restaurante => @restaurante.id)
 
-    if !restUsuario.exists? 
+    if !restUsuario.exists?
       # TODO: Mirar el campo "medio". A lo mejor deberia ser Aviatur
       RestaurantesUsuario.create(:restaurante => @restaurante.id, :fecha => fecha_alta, :hora => hora_alta, :nombre => @user.nombre, :apellidos => @user.apellidos, :telefono => @user.telefono, :ciudad => @user.ciudad, :medio => @user.medio, :email => @user.email, :password => @user.password, :nota => "")
     end
 
     # TODO: Mirar el campo "partner". A lo mejor deberia ser Aviatur
-    restaurantesReservas = RestaurantesReserva.create(:restaurante => @restaurante.id, :usuario => @user.id_usuario, :lespera => @lespera, :widget => false, :partner => false, :fecha_alta => fecha_alta, :hora_alta => hora_alta, :fecha_reserva => @fecha.strftime("%F"), :hora_reserva => @hora.strftime("%T"), :comensales => @personas, :tipo_reserva => 1, :promocion => @idPromocion, :mesa => @mesa, :combinacion => @combinacion, :tiempo => @tiempo, :observaciones => @observaciones, :turno => Restaurante.getTurno(@turno))
+    @restaurantesReservas = RestaurantesReserva.create(:restaurante => @restaurante.id, :usuario => @user.id_usuario, :lespera => @lespera, :widget => false, :partner => false, :fecha_alta => fecha_alta, :hora_alta => hora_alta, :fecha_reserva => @fecha.strftime("%F"), :hora_reserva => @hora.strftime("%T"), :comensales => @personas, :tipo_reserva => 1, :promocion => @idPromocion, :mesa => @mesa, :combinacion => @combinacion, :tiempo => @tiempo, :observaciones => @observaciones, :turno => Restaurante.getTurno(@turno))
 
-    respond_with(restaurantesReservas.id_reserva)
+    respond_to do |format|
+      format.json { render json: @restaurantesReservas }
+      format.xml { render '/app/views/api_mesafijas/rest_reserva_agregar.xml.builder' }
+    end
   end
 
   # Servicio que permite cancelar una reserva mediante los datos proporcionados con el servicio usuario-datos.php
   def rest_reserva_cancelar
-    rest_reserva = RestaurantesReserva.where(:id_reserva => params[:id])
+    rest_reserva = RestaurantesReserva.where(:id_reserva => params[:id_reserva])
     if rest_reserva.exists?
       rest_reserva.first.update_attributes(:cancelado => 1)
 
-      respond_with(true)
+      showSuccess("Aceptado - Se ha cancelado la reserva correctamente") and return
     else
-      respond_with(false)
+      showError("Denegado - No se ha podido cancelar la reserva") and return
     end
   end
 
   # Servicio que permite el reconocimiento del usuario
   def usuario_login
-    respond_with("email o password vacio") and return if params[:email].blank? || params[:password].blank?
+    showError("Correo electronico o contraseña vacio") and return if params[:email].blank? || params[:password].blank?
 
-    user = RestaurantesUsuario.where(:email => params[:email], :password => OpenSSL::HMAC.hexdigest('sha256', 'colombia', params[:password]) )
+    @user = RestaurantesUsuario.where(:email => params[:email], :password => OpenSSL::HMAC.hexdigest('sha256', 'colombia', params[:password]) )
 
-    if user.exists?
-      respond_with(user.first.id_usuario)
+    if @user.exists?
+      respond_to do |format|
+        format.json { render json: @restaurantesReservas }
+        format.xml { render '/app/views/api_mesafijas/usuario_login.xml.builder' }
+      end
     else
-      respond_with(false)
+      showError("Correo electronico o contraseña incorrecto") and return
     end
 
     # 6c4ad053e5c9b1a678e34c3d0bbfa82fd5b477f54e6a0fdba8595025c620e671 == 70887088
@@ -1268,47 +1286,50 @@ class ApiMesafijasController < ApplicationController
     if !usuario.nil?
       usuarioReg = UsuariosReg.create(:email => usuario.email, :clave => clave)
 
-      ApiMesafijaMailer.usuario_regpswd(usuarioReg).deliver
-      respond_with("Aceptado - Te hemos enviado un email")
+      # ApiMesafijaMailer.usuario_regpswd(usuarioReg).deliver
+      showSuccess("Aceptado - Te hemos enviado un email") and return
     else
-      respond_with("Denegado - Email not valid")
+      showError("Denegado - Email not valid") and return
     end
   end
 
   # Servicio que permite el registro del usuario
   def usuario_registro
-    if params[:nombre].blank? 
-      respond_with("Denegado - Falta nombre") and return
-    elsif params[:apellidos].blank? 
-      respond_with("Denegado - Falta apellidos") and return
-    elsif params[:telefono].blank? 
-      respond_with("Denegado - Falta telefono") and return
-    elsif params[:ciudad].blank? 
-      respond_with("Denegado - Falta ciudad") and return
-    elsif params[:email].blank? 
-      respond_with("Denegado - Falta email") and return
-    elsif params[:password].blank? 
-      respond_with("Denegado - Falta password") and return
+    if params[:nombre].blank?
+      showError("Denegado - Falta nombre") and return
+    elsif params[:apellidos].blank?
+      showError("Denegado - Falta apellidos") and return
+    elsif params[:telefono].blank?
+      showError("Denegado - Falta telefono") and return
+    elsif params[:ciudad].blank?
+      showError("Denegado - Falta ciudad") and return
+    elsif params[:email].blank?
+      showError("Denegado - Falta email") and return
+    elsif params[:password].blank?
+      showError("Denegado - Falta password") and return
     elsif RestaurantesUsuario.where(:email => params[:email])
-      respond_with("Denegado - Usuario ya existe")
+      showError("Denegado - Usuario ya existe") and return
     end
 
-    restauranteUsuario = RestaurantesUsuario.create(:fecha => Time.zone.now.strftime("%F"), :hora => Time.zone.now.strftime("%T"), :nombre => params[:nombre], :apellidos => params[:apellidos], :telefono => params[:telefono], :ciudad => params[:ciudad], :medio => params[:medio], :email => params[:email], :password => OpenSSL::HMAC.hexdigest('sha256', 'colombia', params[:password]) )
+    @restauranteUsuario = RestaurantesUsuario.create(:fecha => Time.zone.now.strftime("%F"), :hora => Time.zone.now.strftime("%T"), :nombre => params[:nombre], :apellidos => params[:apellidos], :telefono => params[:telefono], :ciudad => params[:ciudad], :medio => params[:medio], :email => params[:email], :password => OpenSSL::HMAC.hexdigest('sha256', 'colombia', params[:password]) )
 
-    if restauranteUsuario.exists?
-      respond_with(restauranteUsuario.first.id_usuario)
+    if @restauranteUsuario.exists?
+      respond_to do |format|
+        format.json { render json: @restaurantesReservas }
+        format.xml { render '/app/views/api_mesafijas/usuario_registro.xml.builder' }
+      end
     else
-      respond_with(false)
+      showError("Error - No se ha podido registrar el usuario") and return
     end
   end
 
   # Servicio que permite acceder a los datos de usuario
   def usuario_datos
     # Mirar en mi-cuenta.php
-    respond_with("Denegado - Falta idUsuario") and return if params[:idUsuario].blank?
+    showError("Denegado - Falta idUsuario") and return if params[:idUsuario].blank?
     user = RestaurantesUsuario.where(:id_usuario => params[:idUsuario]).first
-    respond_with("Denegado - No existe el usuario con id : "+params[:idUsuario]) and return if user.nil?
-    result = {
+    showError("Denegado - No existe el usuario con id : "+params[:idUsuario]) and return if user.nil?
+    @result = {
       "id" => user.id_usuario,
       "nombre" => user.nombre,
       "apellidos" => user.apellidos,
@@ -1323,58 +1344,63 @@ class ApiMesafijasController < ApplicationController
       "favoritos" => user.getFavoritos
     }
     # TODO : Hacer la funcion de getReservasPendientes, getReservasRealizadas, getFavoritos, getNumComentariosRealizados que esta en restaurante_usuario.rb
+    respond_to do |format|
+      format.json { render json: @restaurantesReservas }
+      format.xml { render '/app/views/api_mesafijas/usuario_datos.xml.builder' }
+    end
   end
 
   # Servicio que permite editar los datos de usuario mediante los datos proporcionados con el servicio usuario-datos.php
   def usuario_editar
     restauranteUsuario = RestaurantesUsuario.where(:id_usuario => params[:idUsuario]).first
 
-    respond_with("Denegado - No existe el usuario con id : "+params[:idUsuario]) and return if restauranteUsuario.nil?
+    showError("Denegado - No existe el usuario con id : "+params[:idUsuario]) and return if restauranteUsuario.nil?
 
     restauranteUsuario.update_attributes(:nombre => params[:nombre]) unless params[:nombre].blank?
     restauranteUsuario.update_attributes(:apellidos => params[:apellidos]) unless params[:apellidos].blank?
     restauranteUsuario.update_attributes(:telefono => params[:telefono]) unless params[:telefono].blank?
     restauranteUsuario.update_attributes(:ciudad => params[:ciudad]) unless params[:ciudad].blank?
     restauranteUsuario.update_attributes(:email => params[:email]) unless params[:email].blank?
-    respond_with("Aceptado - Usuario actualizado")
+
+    showSuccess("Aceptado - Usuario actualizado correctamente") and return
   end
 
   # Servicio que permite valorar un restaurante por el usuario mediante los datos proporcionados con el servicio usuario-datos.php
   def valoracion
     # Mirar en funciones-ajax.php, en 'case "opinion": //Opinión - Insertar'
 
-    if params[:idRestaurante].blank? 
-      respond_with("Denegado - Falta idRestaurante") and return
-    elsif params[:idUsuario].blank? 
-      respond_with("Denegado - Falta idUsuario") and return
-    elsif params[:idReserva].blank? 
-      respond_with("Denegado - Falta idReserva") and return
+    if params[:idRestaurante].blank?
+      showError("Denegado - Falta idRestaurante") and return
+    elsif params[:idUsuario].blank?
+      showError("Denegado - Falta idUsuario") and return
+    elsif params[:idReserva].blank?
+      showError("Denegado - Falta idReserva") and return
     end
 
     opinion = RestaurantesOpinione.where(:restaurante => params[:idRestaurante], :usuario => params[:idUsuario], :reserva => params[:idReserva])
 
-    if params[:valorCocina].blank? 
-      respond_with("Denegado - Falta valorCocina") and return
-    elsif params[:valorAmbiente].blank? 
-      respond_with("Denegado - Falta valorAmbiente") and return
-    elsif params[:valorCalidadPrecio].blank? 
-      respond_with("Denegado - Falta valorCalidadPrecio") and return
-    elsif params[:valorServicio].blank? 
-      respond_with("Denegado - Falta valorServicio") and return
-    elsif params[:valorLimpieza].blank? 
-      respond_with("Denegado - Falta valorLimpieza") and return
-    elsif params[:comentario].blank? 
-      respond_with("Denegado - Falta comentario") and return
+    if params[:valorCocina].blank?
+      showError("Denegado - Falta valorCocina") and return
+    elsif params[:valorAmbiente].blank?
+      showError("Denegado - Falta valorAmbiente") and return
+    elsif params[:valorCalidadPrecio].blank?
+      showError("Denegado - Falta valorCalidadPrecio") and return
+    elsif params[:valorServicio].blank?
+      showError("Denegado - Falta valorServicio") and return
+    elsif params[:valorLimpieza].blank?
+      showError("Denegado - Falta valorLimpieza") and return
+    elsif params[:comentario].blank?
+      showError("Denegado - Falta comentario") and return
     elsif opinion.exists?
-      respond_with("Denegado - Ya valorado")
+      showError("Denegado - Ya valorado") and return
     end
 
     success = RestaurantesOpinione.create(:restaurante => params[:idRestaurante], :usuario => params[:idUsuario], :reserva => params[:idReserva], :fecha => Time.zone.now.strftime("Y-m-d"), :favorito => 0, :cocina => params[:valorCocina], :ambiente => params[:valorAmbiente], :calidadprecio => params[:valorCalidadPrecio], :servicio => params[:valorServicio], :limpieza => params[:valorLimpieza], :comentario => params[:comentario])
     if success
-      respond_with("ok")
       RestaurantesReserva.where(:restaurante => params[:idRestaurante], :usuario => params[:idUsuario], :reserva => params[:idReserva]).update_all(:comentado => true)
+      showSuccess("Aceptado - Valoracion ha sido creada correctamente") and return
     else
-      respond_with("interno")
+      showError("Error - interno") and return
     end
   end
 
@@ -1382,17 +1408,20 @@ class ApiMesafijasController < ApplicationController
   def usuario_favorito_agregar
     # Mirar en funciones-ajax.php, en 'case "agregar-favorito": //Añadir favorito'
 
-    if params[:idUsuario].blank? 
-      respond_with("Denegado - Falta idUsuario") and return
-    elsif params[:idRestaurante].blank? 
-      respond_with("Denegado - Falta idRestaurante") and return
+    if params[:idUsuario].blank?
+      showError("Denegado - Falta idUsuario") and return
+    elsif params[:idRestaurante].blank?
+      showError("Denegado - Falta idRestaurante") and return
     end
 
     favorito = RestaurantesFavorito.where(:usuario => params[:idUsuario], :restaurante => params[:idRestaurante])
 
-    respond_with("Denegado - Este restaurante ya es favorito") and return if favorito.exists?
-    success = RestaurantesFavorito.create(:usuario => params[:idUsuario], :restaurante => params[:idRestaurante])
-    (success) ? respond_with("Aceptado") : respond_with("Denegado")
+    showError("Denegado - Este restaurante ya es favorito") and return if favorito.exists?
+    if RestaurantesFavorito.create(:usuario => params[:idUsuario], :restaurante => params[:idRestaurante])
+      showSuccess("Aceptado - El restaurante ha sido agregado en favoritos") and return
+    else
+      showError("Denegado - No se ha podido añadir a favoritos") and return
+    end
   end
 
   # Servicio que permite desmarcar un restaurante como favorito por el usuario mediante los datos proporcionados con el servicio usuario-datos.php
@@ -1400,21 +1429,20 @@ class ApiMesafijasController < ApplicationController
     # Si nos pasa el idFavorito, lo borramos directamente
     if !params[:idFavorito].blank?
       restFavorito = RestaurantesFavorito.where(:idFavorito => params[:idFavorito])
-      respond_with("Denegado - Este restaurante no esta como favorito") and return if !restFavorito.exists?
-      success = restFavorito.first.delete
-      (success) ? status = "Aceptado" : status = "Denegado"
+      showError("Denegado - Este restaurante no esta como favorito") and return if !restFavorito.exists?
+      restFavorito.first.delete
     elsif !params[:idUsuario].blank? && !params[:idRestaurante].blank?
       restFavorito = RestaurantesFavorito.where(:usuario => params[:idUsuario], :restaurante => params[:idRestaurante])
-      respond_with("Denegado - Este restaurante no esta como favorito") and return if !restFavorito.exists?
-      success = restFavorito.first.delete
-      (success) ? status = "Aceptado" : status = "Denegado"
+      showError("Denegado - Este restaurante no esta como favorito") and return if !restFavorito.exists?
+      restFavorito.first.delete
     else
-      status = "Denegado - Necesita (idUsuario + idRestaurante) o bien directamente idFavorito"
+      showError("Denegado - Necesita (idUsuario + idRestaurante) o bien directamente idFavorito") and return
     end
 
     favorito = RestaurantesFavorito.where(:usuario => params[:idUsuario], :restaurante => params[:idRestaurante])
+    # TODO : En la documentacion falta poner que tb puedes buscar por idUsuario
 
-    respond_with(status)
+    showSuccess("Aceptado - El restaurante ha sido eliminado de la lista de favoritos") and return
   end
 
   # Servicio que permite listar todas las preguntas frecuentes
@@ -1423,16 +1451,19 @@ class ApiMesafijasController < ApplicationController
 
     categorias = SeccionesListCat.order("orden ASC").where(:seccion => 5, :activo => true)
 
-    result = []
+    @result = []
     categorias.each do |categoria|
-      result << {
+      @result << {
         "idCategoria" => categoria.idcategoria,
         "nombre" => categoria.categoriaes,
         "listadoPreguntas" => categoria.getListadoPreguntas
       }
     end
 
-    respond_with(result)
+    respond_to do |format|
+      format.json { render json: @result }
+      format.xml { render '/app/views/api_mesafijas/preguntas.xml.builder' }
+    end
   end
 
   private
@@ -1448,15 +1479,31 @@ class ApiMesafijasController < ApplicationController
     end
 
     def check_idCliente
-      params[:idCliente] = "9a6e722979ef40985214088c5a3dfb77515201d79b49b7f90df8e03a10dbc9cbe"
-      respond_with(nil) and return if params[:idCliente].blank?
+      # params[:idCliente] = "9a6e722979ef40985214088c5a3dfb77515201d79b49b7f90df8e03a10dbc9cbe"
+      showError("Acceso denegado - Necesitas identificarte") and return if params[:idCliente].blank?
       idCliente = params[:idCliente][0]
       hash = params[:idCliente]
 
       if (idCliente + OpenSSL::HMAC.hexdigest('sha256', 'colombia', idCliente)) == hash
         params[:idCliente] = idCliente
       else
-        respond_with("Acceso denegado") and return
+        showError("Acceso denegado - Necesitas identificarte") and return
+      end
+    end
+
+    def showError(error_txt)
+      @error = error_txt
+      respond_with do |format|
+        format.json { render json: @error }
+        format.xml { render '/app/views/api_mesafijas/error.xml.builder' }
+      end
+    end
+
+    def showSuccess(success_txt)
+      @success = success_txt
+      respond_with do |format|
+        format.json { render json: @success }
+        format.xml { render '/app/views/api_mesafijas/success.xml.builder' }
       end
     end
 
@@ -1493,7 +1540,7 @@ class ApiMesafijasController < ApplicationController
       end
     end
 
-    def getMinimoPlazasRestaurante 
+    def getMinimoPlazasRestaurante
       if @modoreservas == 0
         restaurantesMesas = RestaurantesMesa.find(:all,
           :select => "min(plazas_min) as plazasminmesas",
@@ -1650,10 +1697,10 @@ class ApiMesafijasController < ApplicationController
     end
 
     def getPlazasDisponiblesTurno
-      if @bloques_nec <= @maxbloquesbreak then @mesasbreak = 1 end 
-      if @bloques_nec <= @maxbloquesalmuerzo then @mesasalmuerzo = 1 end 
-      if @bloques_nec <= @maxbloquesonces then @mesasonces = 1 end 
-      if @bloques_nec <= @maxbloquescena then @mesascena = 1 end 
+      if @bloques_nec <= @maxbloquesbreak then @mesasbreak = 1 end
+      if @bloques_nec <= @maxbloquesalmuerzo then @mesasalmuerzo = 1 end
+      if @bloques_nec <= @maxbloquesonces then @mesasonces = 1 end
+      if @bloques_nec <= @maxbloquescena then @mesascena = 1 end
     end
 
     def arrayParrilla
@@ -1723,7 +1770,7 @@ class ApiMesafijasController < ApplicationController
         # Comprobamos resultados
         if numreservasmesa == 0 && numreservascomb == 0 && numbloqueosmesa == 0 && numbloqueoscomb == 0
           @bloquesbreak += 1
-          @maxbloquesbreak = @bloquesbreak if @bloquesbreak >= @maxbloquesbreak    
+          @maxbloquesbreak = @bloquesbreak if @bloquesbreak >= @maxbloquesbreak
         else
           @bloquesbreak = 0
         end
@@ -1751,7 +1798,7 @@ class ApiMesafijasController < ApplicationController
         # Comprobamos resultados
         if numreservasmesa == 0 && numreservascomb == 0 && numbloqueosmesa == 0 && numbloqueoscomb == 0
           @bloquesalmuerzo += 1
-          @maxbloquesalmuerzo = @bloquesalmuerzo if @bloquesalmuerzo >= @maxbloquesalmuerzo    
+          @maxbloquesalmuerzo = @bloquesalmuerzo if @bloquesalmuerzo >= @maxbloquesalmuerzo
         else
           @bloquesalmuerzo = 0
         end
@@ -1779,7 +1826,7 @@ class ApiMesafijasController < ApplicationController
         # Comprobamos resultados
         if numreservasmesa == 0 && numreservascomb == 0 && numbloqueosmesa == 0 && numbloqueoscomb == 0
           @bloquesonces += 1
-          @maxbloquesonces = @bloquesonces if @bloquesonces >= @maxbloquesonces    
+          @maxbloquesonces = @bloquesonces if @bloquesonces >= @maxbloquesonces
         else
           @bloquesonces = 0
         end
@@ -1807,7 +1854,7 @@ class ApiMesafijasController < ApplicationController
         # Comprobamos resultados
         if numreservasmesa == 0 && numreservascomb == 0 && numbloqueosmesa == 0 && numbloqueoscomb == 0
           @bloquescena += 1
-          @maxbloquescena = @bloquescena if @bloquescena >= @maxbloquescena    
+          @maxbloquescena = @bloquescena if @bloquescena >= @maxbloquescena
         else
           @bloquescena = 0
         end
@@ -1845,7 +1892,7 @@ class ApiMesafijasController < ApplicationController
         # Comprobamos resultados
         if numreservascomb == 0 && numreservasmesacomb == 0 && numreservasmesaotracomb == 0 && numbloqueoscomb == 0 && numbloqueosmesacomb == 0 && numbloqueosmesaotracomb == 0
           @bloquesbreak += 1
-          @maxbloquesbreak = @bloquesbreak if @bloquesbreak >= @maxbloquesbreak    
+          @maxbloquesbreak = @bloquesbreak if @bloquesbreak >= @maxbloquesbreak
         else
           @bloquesbreak = 0
         end
@@ -1882,7 +1929,7 @@ class ApiMesafijasController < ApplicationController
 
         if numreservascomb == 0 && numreservasmesacomb == 0 && numreservasmesaotracomb == 0 && numbloqueoscomb == 0 && numbloqueosmesacomb == 0 && numbloqueosmesaotracomb == 0
           @bloquesalmuerzo += 1
-          @maxbloquesalmuerzo = @bloquesalmuerzo if @bloquesalmuerzo >= @maxbloquesalmuerzo    
+          @maxbloquesalmuerzo = @bloquesalmuerzo if @bloquesalmuerzo >= @maxbloquesalmuerzo
         else
           @bloquesalmuerzo = 0
         end
@@ -1920,7 +1967,7 @@ class ApiMesafijasController < ApplicationController
         # Comprobamos resultados
         if numreservascomb == 0 && numreservasmesacomb == 0 && numreservasmesaotracomb == 0 && numbloqueoscomb == 0 && numbloqueosmesacomb == 0 && numbloqueosmesaotracomb == 0
           @bloquesonces += 1
-          @maxbloquesonces = @bloquesonces if @bloquesonces >= @maxbloquesonces    
+          @maxbloquesonces = @bloquesonces if @bloquesonces >= @maxbloquesonces
         else
           @bloquesonces = 0
         end
@@ -1958,7 +2005,7 @@ class ApiMesafijasController < ApplicationController
         # Comprobamos resultados
         if numreservascomb == 0 && numreservasmesacomb == 0 && numreservasmesaotracomb == 0 && numbloqueoscomb == 0 && numbloqueosmesacomb == 0 && numbloqueosmesaotracomb == 0
           @bloquescena += 1
-          @maxbloquescena = @bloquescena if @bloquescena >= @maxbloquescena    
+          @maxbloquescena = @bloquescena if @bloquescena >= @maxbloquescena
         else
           @bloquescena = 0
         end
